@@ -544,8 +544,9 @@ function HomeContent() {
               
               {/* Content */}
               <div className="relative z-10 text-center py-16 md:py-20 px-6">
-                <div className="text-3xl md:text-4xl font-bold mb-4 animate-bounce tracking-wide">
-                  အိမ်ဖော် - သက်ပိုင်(ဘာသာပြန်)
+                <div className="font-bold mb-4 animate-bounce tracking-wide">
+                  <div className="text-4xl md:text-5xl mb-1">အိမ်ဖော်</div>
+                  <div className="text-xl md:text-2xl text-white/70">သက်ပိုင်(ဘာသာပြန်)</div>
                 </div>
                 <div className="w-16 h-0.5 bg-gradient-to-r from-purple-400 to-pink-400 mx-auto mb-4 rounded-full" />
                 <h2 className="text-2xl md:text-3xl text-white/90 mb-3">
