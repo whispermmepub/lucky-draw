@@ -115,14 +115,14 @@ function ParticipantInput({
           onChange={e => onChange(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="နာမည် ထည့်ပါ..."
-          className="w-full px-4 py-3.5 bg-black/40 backdrop-blur-sm border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all text-base"
+          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/40 transition-all text-base"
           disabled={participantCount >= maxParticipants}
         />
       </div>
       <button
         onClick={onAdd}
         disabled={!value.trim() || participantCount >= maxParticipants}
-        className="px-6 py-3.5 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all active:scale-95 flex items-center gap-2 mont-font text-sm shadow-lg shadow-purple-500/20"
+        className="px-6 py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all active:scale-95 flex items-center gap-2 text-sm"
       >
         <span>+</span>
         <span className="hidden xs:inline">ထည့်မယ်</span>
@@ -153,7 +153,7 @@ function ParticipantList({
       {participants.map((name, i) => (
         <div
           key={`${name}-${i}`}
-          className="group relative p-3 bg-black/30 backdrop-blur-sm border border-white/10 rounded-xl hover:border-purple-500/50 transition-all"
+          className="group relative p-3 bg-white/5 border border-white/10 rounded-xl hover:border-purple-500/40 hover:bg-white/[0.07] transition-all"
         >
           <div className="flex items-center gap-2.5">
             <span className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-purple-500/60 to-purple-400/40 flex items-center justify-center text-xs font-bold text-white">
@@ -192,8 +192,8 @@ function DrawButton({
         relative w-full py-4 rounded-2xl font-bold text-lg mont-font tracking-wide
         transition-all duration-300 active:scale-95
         ${isDrawing
-          ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-white animate-pulse-glow'
-          : 'bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 text-white hover:opacity-90 shadow-lg shadow-purple-500/30'
+          ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white animate-pulse-glow'
+          : 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg'
         }
         disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none
       `}
@@ -266,8 +266,8 @@ function WinnerHistory({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-      <div className="bg-gray-900/95 border border-white/10 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+      <div className="bg-gray-900/95 border border-white/10 rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl shadow-purple-500/5">
+        <div className="flex items-center justify-between p-5 border-b border-white/10">
           <h2 className="display-font text-2xl text-purple-400">📋 ကံထူးရှင်စာရင်း</h2>
           <button
             onClick={onClose}
@@ -289,7 +289,7 @@ function WinnerHistory({
               {winners.map((w, i) => (
                 <div
                   key={`${w.name}-${i}`}
-                  className="p-3 bg-black/30 border border-white/10 rounded-lg hover:border-purple-500/50 transition-colors"
+                  className="p-3 bg-white/5 border border-white/10 rounded-lg hover:border-purple-500/40 transition-colors"
                 >
                   <div className="flex items-start gap-3">
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-purple-500/60 to-purple-400/40 flex items-center justify-center mt-0.5">
@@ -319,22 +319,22 @@ function WinnerHistory({
         </div>
 
         {winners.length > 0 && (
-          <div className="border-t border-white/10 p-6 flex gap-3 flex-wrap">
+          <div className="border-t border-white/10 p-5 flex gap-3 flex-wrap">
             <button
               onClick={downloadExcel}
-              className="flex-1 min-w-[140px] px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-all text-sm"
+              className="flex-1 min-w-[120px] px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-all text-sm"
             >
               📊 Excel ဒေါင်းလုဒ်
             </button>
             <button
               onClick={downloadCSV}
-              className="flex-1 min-w-[140px] px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-all text-sm"
+              className="flex-1 min-w-[120px] px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-all text-sm"
             >
               CSV ဒေါင်းလုဒ်
             </button>
             <button
               onClick={onClear}
-              className="flex-1 min-w-[140px] px-4 py-2.5 border border-red-500/50 text-red-400 hover:bg-red-500/10 rounded-xl font-medium transition-all text-sm"
+              className="flex-1 min-w-[120px] px-4 py-2.5 border border-red-500/40 text-red-400 hover:bg-red-500/10 rounded-xl font-medium transition-all text-sm"
             >
               🗑️ ဖျက်သိမ်း
             </button>
@@ -478,11 +478,11 @@ function HomeContent() {
       {/* Content */}
       <div className="relative z-10">
         {/* Header */}
-        <header className="border-b border-white/10 bg-black/30 backdrop-blur-md sticky top-0 z-30">
+        <header className="border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-30">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xl shadow-lg shadow-purple-500/20">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xl shadow-lg">
                   🍀
                 </div>
                 <div>
@@ -517,30 +517,35 @@ function HomeContent() {
 
         <main className="container mx-auto px-4 py-8 max-w-3xl">
           {/* Hero Section */}
-          <div
-            className="text-center mb-10 relative rounded-2xl overflow-hidden py-12 px-4"
-            style={{
-              backgroundImage: 'url("https://blogger.googleusercontent.com/img/a/AVvXsEjFxEJfeaZUGIHfVF-u4HzxgJOMhnT8WQt9CwOieMhfDZ6_8QI54yPRvG3L6osr9R2KjiT2vZH1oKitHmxmP5ZutUYLcdYAdfy_lfe4lf75OqWd4vqwIkTeI86Yq4cPwbc2AwuMQ_sMJ-gzHlRoVWrJIxADv5l6qoi0gp5nwn1OPPp5DHyACOUZix6PAsc=rw")',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-          >
-            <div className="absolute inset-0 bg-black/50" />
-            <div className="relative z-10">
-              <div className="text-3xl md:text-4xl font-bold mb-6 animate-bounce" style={{ fontFamily: 'var(--font-display, "Playfair Display", serif)' }}>
-                အိမ်ဖော် - သက်ပိုင်(ဘာသာပြန်)
+          <div className="mb-10">
+            <div className="relative rounded-2xl overflow-hidden">
+              {/* Background with subtle overlay */}
+              <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{
+                  backgroundImage: 'url("https://blogger.googleusercontent.com/img/a/AVvXsEjFxEJfeaZUGIHfVF-u4HzxgJOMhnT8WQt9CwOieMhfDZ6_8QI54yPRvG3L6osr9R2KjiT2vZH1oKitHmxmP5ZutUYLcdYAdfy_lfe4lf75OqWd4vqwIkTeI86Yq4cPwbc2AwuMQ_sMJ-gzHlRoVWrJIxADv5l6qoi0gp5nwn1OPPp5DHyACOUZix6PAsc=rw")',
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/60" />
+              
+              {/* Content */}
+              <div className="relative z-10 text-center py-16 md:py-20 px-6">
+                <div className="text-3xl md:text-4xl font-bold mb-4 animate-bounce tracking-wide">
+                  အိမ်ဖော် - သက်ပိုင်(ဘာသာပြန်)
+                </div>
+                <div className="w-16 h-0.5 bg-gradient-to-r from-purple-400 to-pink-400 mx-auto mb-4 rounded-full" />
+                <h2 className="text-2xl md:text-3xl text-white/90 mb-3">
+                  ကံထူးသူအား ရွေးချယ်ရန်
+                </h2>
+                <p className="text-white/60 text-sm md:text-base max-w-md mx-auto">
+                  ပါဝင်သူများ၏ နာမည်ကို ထည့်သွင်းပြီး Lucky Draw ပြုလုပ်လိုက်ပါ။
+                </p>
               </div>
-              <h2 className="display-font text-3xl md:text-4xl text-white mb-3 drop-shadow-lg">
-                ကံထူးသူအား ရွေးချယ်ရန်
-              </h2>
-              <p className="text-white/70 text-sm md:text-base max-w-md mx-auto drop-shadow">
-                ပါဝင်သူများ၏ နာမည်ကို ထည့်သွင်းပြီး Lucky Draw ပြုလုပ်လိုက်ပါ။
-              </p>
             </div>
           </div>
 
           {/* Input Section */}
-          <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-4 xs:p-6 mb-8">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5 xs:p-6 mb-6">
             <ParticipantInput
               value={inputValue}
               onChange={setInputValue}
@@ -572,7 +577,7 @@ function HomeContent() {
           </div>
 
           {/* Winner Display */}
-          <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-6 mb-8 min-h-[120px] flex items-center justify-center">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 mb-6 min-h-[120px] flex items-center justify-center">
             {winner ? (
               <WinnerDisplay winner={winner} />
             ) : (
@@ -584,7 +589,7 @@ function HomeContent() {
           </div>
 
           {/* Participants List */}
-          <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-4 xs:p-6">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5 xs:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="display-font text-lg text-white">📝 ပါဝင်သူများ</h3>
               <span className="text-xs text-white/50">
@@ -597,7 +602,7 @@ function HomeContent() {
         </main>
 
         {/* Footer */}
-        <footer className="border-t border-white/10 bg-black/30 backdrop-blur-md py-8 mt-12">
+        <footer className="border-t border-white/10 bg-white/5 backdrop-blur-sm py-6 mt-12">
           <div className="container mx-auto text-center text-sm text-white/50">
             <p>
               Lucky Draw © 2026 •{' '}
