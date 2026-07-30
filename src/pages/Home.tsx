@@ -473,15 +473,7 @@ function HomeContent() {
 
   return (
     <div className="min-h-screen bg-background text-white relative">
-      {/* Background Image */}
-      <div
-        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: 'url("https://blogger.googleusercontent.com/img/a/AVvXsEjFxEJfeaZUGIHfVF-u4HzxgJOMhnT8WQt9CwOieMhfDZ6_8QI54yPRvG3L6osr9R2KjiT2vZH1oKitHmxmP5ZutUYLcdYAdfy_lfe4lf75OqWd4vqwIkTeI86Yq4cPwbc2AwuMQ_sMJ-gzHlRoVWrJIxADv5l6qoi0gp5nwn1OPPp5DHyACOUZix6PAsc=rw")',
-        }}
-      />
-      {/* Dark Overlay */}
-      <div className="fixed inset-0 z-[1] bg-black/60" />
+
 
       {/* Content */}
       <div className="relative z-10">
@@ -525,14 +517,26 @@ function HomeContent() {
 
         <main className="container mx-auto px-4 py-8 max-w-3xl">
           {/* Hero Section */}
-          <div className="text-center mb-10">
-            <div className="text-6xl md:text-7xl mb-6 animate-bounce">🍀</div>
-            <h2 className="display-font text-3xl md:text-4xl text-white mb-3 drop-shadow-lg">
-              ကံထူးသူအား ရွေးချယ်ရန်
-            </h2>
-            <p className="text-white/70 text-sm md:text-base max-w-md mx-auto drop-shadow">
-              ပါဝင်သူများ၏ နာမည်ကို ထည့်သွင်းပြီး Lucky Draw ပြုလုပ်လိုက်ပါ။
-            </p>
+          <div
+            className="text-center mb-10 relative rounded-2xl overflow-hidden py-12 px-4"
+            style={{
+              backgroundImage: 'url("https://blogger.googleusercontent.com/img/a/AVvXsEjFxEJfeaZUGIHfVF-u4HzxgJOMhnT8WQt9CwOieMhfDZ6_8QI54yPRvG3L6osr9R2KjiT2vZH1oKitHmxmP5ZutUYLcdYAdfy_lfe4lf75OqWd4vqwIkTeI86Yq4cPwbc2AwuMQ_sMJ-gzHlRoVWrJIxADv5l6qoi0gp5nwn1OPPp5DHyACOUZix6PAsc=rw")',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          >
+            <div className="absolute inset-0 bg-black/50" />
+            <div className="relative z-10">
+              <div className="text-3xl md:text-4xl font-bold mb-6 animate-bounce" style={{ fontFamily: 'var(--font-display, "Playfair Display", serif)' }}>
+                အိမ်ဖော် - သက်ပိုင်(ဘာသာပြန်)
+              </div>
+              <h2 className="display-font text-3xl md:text-4xl text-white mb-3 drop-shadow-lg">
+                ကံထူးသူအား ရွေးချယ်ရန်
+              </h2>
+              <p className="text-white/70 text-sm md:text-base max-w-md mx-auto drop-shadow">
+                ပါဝင်သူများ၏ နာမည်ကို ထည့်သွင်းပြီး Lucky Draw ပြုလုပ်လိုက်ပါ။
+              </p>
+            </div>
           </div>
 
           {/* Input Section */}
