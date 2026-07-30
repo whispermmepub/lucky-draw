@@ -1,19 +1,6 @@
 @import "tailwindcss";
 
 @theme {
-  --color-border: oklch(0.28 0.03 260);
-  --color-primary: oklch(0.65 0.2 280);
-  --color-primary-foreground: #fff;
-  --color-accent: oklch(0.25 0.04 260);
-  --color-accent-foreground: oklch(0.85 0.02 260);
-  --color-card: oklch(0.18 0.02 260);
-  --color-card-foreground: oklch(0.85 0.02 260);
-  --color-muted: oklch(0.35 0.03 260);
-  --color-muted-foreground: oklch(0.6 0.02 260);
-  --color-destructive: oklch(0.6 0.2 25);
-  --color-destructive-foreground: #fff;
-  --color-background: oklch(0.13 0.02 260);
-  --color-foreground: oklch(0.9 0.01 260);
   --font-display: "Playfair Display", serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mont: "Montserrat", sans-serif;
@@ -21,12 +8,12 @@
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-muted) transparent;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
 }
 
 body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
+  background-color: #0a0a0a;
+  color: #ffffff;
   font-family: var(--font-sans);
 }
 
@@ -58,8 +45,8 @@ body {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px oklch(0.65 0.2 280 / 0.3); }
-  50% { box-shadow: 0 0 40px oklch(0.65 0.2 280 / 0.6); }
+  0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(168, 85, 247, 0.6); }
 }
 
 .animate-draw-spin {
