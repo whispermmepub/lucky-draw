@@ -9,6 +9,7 @@ interface Winner {
 
 const MAX_PARTICIPANTS = 5000
 const STORAGE_KEY = 'lucky-draw-winners'
+const PARTICIPANTS_KEY = 'lucky-draw-participants'
 const SOUND_ENABLED_KEY = 'lucky-draw-sound'
 
 function useSoundEffect() {
@@ -349,7 +350,14 @@ function HomeContent() {
   const toast = useToast()
   const { playTick, playWin } = useSoundEffect()
 
-  const [participants, setParticipants] = useState<string[]>([])
+  const [participants, setParticipants] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(PARTICIPANTS_KEY)
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  })
   const [inputValue, setInputValue] = useState('')
   const [isDrawing, setIsDrawing] = useState(false)
   const [winner, setWinner] = useState<string | null>(null)
@@ -376,6 +384,10 @@ function HomeContent() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(winners))
   }, [winners])
+
+  useEffect(() => {
+    localStorage.setItem(PARTICIPANTS_KEY, JSON.stringify(participants))
+  }, [participants])
 
   useEffect(() => {
     localStorage.setItem(SOUND_ENABLED_KEY, String(soundEnabled))
@@ -561,6 +573,7 @@ function HomeContent() {
                 <button
                   onClick={() => {
                     setParticipants([])
+                    localStorage.removeItem(PARTICIPANTS_KEY)
                     toast.info('ပါဝင်သူများ ဖျက်သိမ်းပြီးပါပြီ')
                   }}
                   className="text-red-400 hover:text-red-300 transition-colors"
