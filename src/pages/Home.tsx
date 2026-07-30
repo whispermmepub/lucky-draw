@@ -207,7 +207,7 @@ function DrawButton({
           <span>ရွေးချယ်နေသည်...</span>
         </span>
       ) : (
-        <span>🎯 ပစ်မယ်!</span>
+        <span>🎯 ကံထူးရှင်ရွေးချယ်ရန်!</span>
       )}
     </button>
   )
