@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@theme {
+  --color-border: oklch(0.28 0.03 260);
+  --color-primary: oklch(0.65 0.2 280);
+  --color-primary-foreground: #fff;
+  --color-accent: oklch(0.25 0.04 260);
+  --color-accent-foreground: oklch(0.85 0.02 260);
+  --color-card: oklch(0.18 0.02 260);
+  --color-card-foreground: oklch(0.85 0.02 260);
+  --color-muted: oklch(0.35 0.03 260);
+  --color-muted-foreground: oklch(0.6 0.02 260);
+  --color-destructive: oklch(0.6 0.2 25);
+  --color-destructive-foreground: #fff;
+  --color-background: oklch(0.13 0.02 260);
+  --color-foreground: oklch(0.9 0.01 260);
+  --font-display: "Playfair Display", serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mont: "Montserrat", sans-serif;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-muted) transparent;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+.display-font {
+  font-family: var(--font-display);
+}
+
+.mont-font {
+  font-family: var(--font-mont);
+}
+
+@keyframes draw-spin {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(90deg) scale(1.05); }
+  50% { transform: rotate(180deg) scale(1.1); }
+  75% { transform: rotate(270deg) scale(1.05); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes draw-reveal {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100px) rotate(720deg); opacity: 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px oklch(0.65 0.2 280 / 0.3); }
+  50% { box-shadow: 0 0 40px oklch(0.65 0.2 280 / 0.6); }
+}
+
+.animate-draw-spin {
+  animation: draw-spin 1.5s ease-in-out;
+}
+
+.animate-draw-reveal {
+  animation: draw-reveal 0.6s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  animation: confetti-fall 2s ease-out forwards;
+}
