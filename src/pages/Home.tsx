@@ -494,11 +494,13 @@ function HomeContent() {
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xl shadow-lg">
-                  🍀
-                </div>
+                <img
+                  src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj_DZjS62GdjDD8grhuwODTqovHwU4_9Ec1dtgpIkwvjnQUN4I_lH8edR7SZ7CJBv6DUTCWoa1ayJDSy0TiZsWcsoxqD4bIZFlWfWEgUr33g3uiDlu8AyV7Vx9Y3BFc_JRxr6oAfPqXTKr1Ye1pmmEl4j9G0Ly1Oh23d9u2qOUOsJsdemn57WlDl8xY0oI/s518-rw/about%20us%20.png"
+                  alt="WoW Logo"
+                  className="w-10 h-10 rounded-xl object-cover shadow-lg"
+                />
                 <div>
-                  <h1 className="display-font text-xl md:text-2xl text-white">Lucky Draw</h1>
+                  <h1 className="display-font text-xl md:text-2xl text-white">WoW - Lucky Draw</h1>
                   <p className="text-xs text-white/50 hidden xs:block">Random Winner Picker</p>
                 </div>
               </div>
