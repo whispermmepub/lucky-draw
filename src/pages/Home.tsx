@@ -32,22 +32,51 @@ function sortParticipants(names: string[]): string[] {
 function useSoundEffect() {
   const audioCtxRef = useRef<AudioContext | null>(null)
 
-  const playTick = useCallback((frequency?: number) => {
+  const playTick = useCallback((frequency?: number, power = 1) => {
     try {
       if (!audioCtxRef.current) {
         audioCtxRef.current = new AudioContext()
       }
       const ctx = audioCtxRef.current
+      const t0 = ctx.currentTime
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.connect(gain)
       gain.connect(ctx.destination)
-      osc.frequency.value = frequency ?? 800 + Math.random() * 400
-      osc.type = 'sine'
-      gain.gain.value = 0.08
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08)
-      osc.start(ctx.currentTime)
-      osc.stop(ctx.currentTime + 0.08)
+      const base = frequency ?? 800 + Math.random() * 400
+      osc.frequency.setValueAtTime(base, t0)
+      osc.frequency.exponentialRampToValueAtTime(base * 0.85, t0 + 0.06)
+      osc.type = 'square'
+      gain.gain.setValueAtTime(0.05 * power, t0)
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.07)
+      osc.start(t0)
+      osc.stop(t0 + 0.07)
+    } catch {
+      // audio not available
+    }
+  }, [])
+
+  const playStep = useCallback(() => {
+    // Mechanical slot "thunk": two quick low tones
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext()
+      }
+      const ctx = audioCtxRef.current
+      const t0 = ctx.currentTime
+      ;[480, 260].forEach((freq, i) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.frequency.setValueAtTime(freq, t0 + i * 0.05)
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.7, t0 + i * 0.05 + 0.07)
+        osc.type = 'triangle'
+        gain.gain.setValueAtTime(0.12, t0 + i * 0.05)
+        gain.gain.exponentialRampToValueAtTime(0.001, t0 + i * 0.05 + 0.09)
+        osc.start(t0 + i * 0.05)
+        osc.stop(t0 + i * 0.05 + 0.1)
+      })
     } catch {
       // audio not available
     }
@@ -59,25 +88,26 @@ function useSoundEffect() {
         audioCtxRef.current = new AudioContext()
       }
       const ctx = audioCtxRef.current
-      const notes = [523, 659, 784, 1047]
+      const notes = [523, 659, 784, 1047, 1319]
       notes.forEach((freq, i) => {
         const osc = ctx.createOscillator()
         const gain = ctx.createGain()
         osc.connect(gain)
         gain.connect(ctx.destination)
         osc.frequency.value = freq
-        osc.type = 'sine'
-        gain.gain.value = 0.1
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.3)
-        osc.start(ctx.currentTime + i * 0.15)
-        osc.stop(ctx.currentTime + i * 0.15 + 0.3)
+        osc.type = i === notes.length - 1 ? 'triangle' : 'sine'
+        const vol = i === notes.length - 1 ? 0.14 : 0.1
+        gain.gain.setValueAtTime(vol, ctx.currentTime + i * 0.14)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.14 + 0.45)
+        osc.start(ctx.currentTime + i * 0.14)
+        osc.stop(ctx.currentTime + i * 0.14 + 0.5)
       })
     } catch {
       // audio not available
     }
   }, [])
 
-  return { playTick, playWin }
+  return { playTick, playStep, playWin }
 }
 
 function ConfettiOverlay() {
@@ -235,11 +265,13 @@ function CasinoSlot({
   participants,
   soundEnabled,
   playTick,
+  playStep,
   onFinished,
 }: {
   participants: string[]
   soundEnabled: boolean
-  playTick: (freq?: number) => void
+  playTick: (freq?: number, power?: number) => void
+  playStep: () => void
   onFinished: (winner: string) => void
 }) {
   const ROW_H = 48
@@ -277,25 +309,34 @@ function CasinoSlot({
     // Main fast spin → [steps "him? me?" → sudden re-spin] × 3 → final steps → reveal
     const w = reel.length - 2 // winner index
     let cancelled = false
-    let fastTick: number | null = null
+    let tickTimeout: number | null = null
     const timers: number[] = []
     const schedule = (fn: () => void, ms: number) => {
       if (cancelled) return
       timers.push(window.setTimeout(fn, ms))
     }
-    const startFastTicks = () => {
-      fastTick = window.setInterval(() => {
-        if (soundEnabled) playTick(600 + Math.random() * 300)
-      }, 65)
-    }
-    const stopFastTicks = () => {
-      if (fastTick !== null) {
-        window.clearInterval(fastTick)
-        fastTick = null
+    // Speed-matched ticks: fast when the reel is fast, slow when it's slow
+    const startTicks = (duration: number) => {
+      stopTicks()
+      const startTime = performance.now()
+      const step = () => {
+        if (cancelled) return
+        const elapsed = performance.now() - startTime
+        const p = Math.min(1, elapsed / Math.max(1, duration))
+        const ease = Math.sin(p * Math.PI) // 0 -> 1 -> 0
+        const delay = Math.max(30, Math.round(170 - ease * 135)) // 170ms edges, 35ms middle
+        if (soundEnabled) playTick(400 + ease * 650, 0.8 + ease * 0.6)
+        if (elapsed < duration) {
+          tickTimeout = window.setTimeout(step, delay)
+        }
       }
+      step()
     }
-    const clunk = () => {
-      if (soundEnabled) playTick(180 + Math.random() * 70)
+    const stopTicks = () => {
+      if (tickTimeout !== null) {
+        window.clearTimeout(tickTimeout)
+        tickTimeout = null
+      }
     }
     const stepEase = 'cubic-bezier(0.2, 0.7, 0.3, 1)'
     const spinEase = 'cubic-bezier(0.55, 0, 0.95, 0.35)'
@@ -303,7 +344,7 @@ function CasinoSlot({
     // --- Phase 1: main fast spin ---
     const p1 = Math.max(1, w - 50)
     let t = 150
-    startFastTicks()
+    startTicks(4500)
     schedule(() => {
       setEase(spinEase)
       setTransitionMs(4500)
@@ -311,7 +352,7 @@ function CasinoSlot({
     }, t)
     t += 4500
     schedule(() => {
-      stopFastTicks()
+      stopTicks()
     }, t)
 
     // --- Cycles: slow steps + sudden re-spin, x3 ---
@@ -328,11 +369,11 @@ function CasinoSlot({
         const pause = cyc.pauses[i]
         const trans = cyc.trans
         schedule(() => {
-          stopFastTicks()
+          stopTicks()
           setEase(stepEase)
           setTransitionMs(trans)
           setOffset(-(m - 1) * ROW_H)
-          clunk()
+          playStep()
         }, t)
         t += pause
       }
@@ -340,14 +381,14 @@ function CasinoSlot({
       // Sudden fast re-spin
       t += 300 // moment of silence - "is it stopping?"
       schedule(() => {
-        startFastTicks()
+        startTicks(cyc.respinMs)
         setEase(spinEase)
         setTransitionMs(cyc.respinMs)
         setOffset(-(cyc.respinTo - 1) * ROW_H)
       }, t)
       t += cyc.respinMs
       schedule(() => {
-        stopFastTicks()
+        stopTicks()
         if (soundEnabled) playTick(200)
       }, t)
       t += 250
@@ -362,7 +403,7 @@ function CasinoSlot({
         setEase(stepEase)
         setTransitionMs(finalTrans[i - 1])
         setOffset(-(m - 1) * ROW_H)
-        clunk()
+        playStep()
       }, t)
       t += finalPauses[i - 1]
     }
@@ -375,7 +416,7 @@ function CasinoSlot({
 
     return () => {
       cancelled = true
-      stopFastTicks()
+      stopTicks()
       timers.forEach(id => window.clearTimeout(id))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -627,7 +668,7 @@ function WinnerHistory({
 
 function HomeContent() {
   const toast = useToast()
-  const { playTick, playWin } = useSoundEffect()
+  const { playTick, playStep, playWin } = useSoundEffect()
 
   const [participants, setParticipants] = useState<string[]>(() => {
     try {
@@ -888,6 +929,7 @@ function HomeContent() {
                 participants={participants}
                 soundEnabled={soundEnabled}
                 playTick={playTick}
+                playStep={playStep}
                 onFinished={handleWinnerSelected}
               />
             </div>
