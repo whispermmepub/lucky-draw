@@ -561,12 +561,12 @@ function HomeContent() {
                   <div className="text-4xl md:text-5xl mb-1">အိမ်ဖော်</div>
                   <div className="text-xl md:text-2xl text-white/80">သက်ပိုင်(ဘာသာပြန်)</div>
                 </div>
-                <div className="pb-6 md:pb-10">
-                  <div className="w-16 h-0.5 bg-gradient-to-r from-purple-400 to-pink-400 mx-auto mb-4 rounded-full" />
-                  <h2 className="text-xl md:text-2xl text-white mb-2">
+                <div className="pb-8 md:pb-12">
+                  <div className="w-12 h-0.5 bg-gradient-to-r from-purple-400 to-pink-400 mx-auto mb-3 rounded-full" />
+                  <h2 className="text-lg md:text-xl text-white mb-2">
                     ကံထူးသူအား ရွေးချယ်ရန်
                   </h2>
-                  <p className="text-xs md:text-sm text-white/70 max-w-md mx-auto">
+                  <p className="text-[11px] md:text-xs text-white/70 max-w-md mx-auto">
                     ပါဝင်သူများ၏ နာမည်ကို ထည့်သွင်းပြီး Lucky Draw ပြုလုပ်လိုက်ပါ။
                   </p>
                 </div>
