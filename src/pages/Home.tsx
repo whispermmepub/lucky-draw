@@ -115,7 +115,7 @@ function ParticipantInput({
           value={value}
           onChange={e => onChange(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="နာမည် ထည့်ပါ..."
+          placeholder="နာမည် ထည့်ပါ... (ကော်မာ , ခြားပြီး အများကြီး ထည့်နိုင်)"
           className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/40 transition-all text-base"
           disabled={participantCount >= maxParticipants}
         />
@@ -405,19 +405,27 @@ function HomeContent() {
   }, [soundEnabled])
 
   const addParticipant = useCallback(() => {
-    const name = inputValue.trim()
-    if (!name) return
-    if (participants.length >= MAX_PARTICIPANTS) {
+    const names = inputValue
+      .split(/[,၊，]+/)
+      .map(n => n.trim())
+      .filter(Boolean)
+    if (names.length === 0) return
+    if (participants.length + names.length > MAX_PARTICIPANTS) {
       toast.error(`အများဆုံး ${MAX_PARTICIPANTS.toLocaleString()} ယောက်သာ ထည့်နိုင်ပါသည်`)
       return
     }
-    if (participants.includes(name)) {
-      toast.error('ဤနာမည် ရှိပြီးသားပါ')
+    const duplicates = names.filter(n => participants.includes(n))
+    if (duplicates.length > 0) {
+      toast.error(`"${duplicates[0]}" ရှိပြီးသားပါ`)
       return
     }
-    setParticipants(prev => [...prev, name])
+    setParticipants(prev => [...prev, ...names])
     setInputValue('')
-    toast.success(`"${name}" ကို ထည့်သွင်းပြီးပါပြီ`)
+    toast.success(
+      names.length > 1
+        ? `"${names.length}" ယောက် ထည့်သွင်းပြီးပါပြီ`
+        : `"${names[0]}" ကို ထည့်သွင်းပြီးပါပြီ`
+    )
   }, [inputValue, participants, toast])
 
   const removeParticipant = useCallback((index: number) => {
@@ -609,7 +617,7 @@ function HomeContent() {
             ) : (
               <div className="text-center text-white/50">
                 <div className="text-3xl mb-2">🎯</div>
-                <p className="text-sm">ခလုတ်ကို နှိပ်၍ ကံထူးသူအား ရွေးချယ်ပါ</p>
+                <p className="text-sm">ကံထူးရှင် ဘယ်သူ ဖြစ်မလဲ?</p>
               </div>
             )}
           </div>
