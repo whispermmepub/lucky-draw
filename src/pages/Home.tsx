@@ -556,19 +556,10 @@ function HomeContent() {
               <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/30" />
               
               {/* Content */}
-              <div className="relative z-10 text-center px-6 py-8 md:py-10 flex flex-col justify-between min-h-[420px] md:min-h-[480px]">
-                <div className="animate-bounce tracking-wide pt-4">
-                  <div className="text-4xl md:text-5xl mb-1">အိမ်ဖော်</div>
-                  <div className="text-xl md:text-2xl text-white/80">သက်ပိုင်(ဘာသာပြန်)</div>
-                </div>
-                <div className="pb-8 md:pb-12">
-                  <div className="w-12 h-0.5 bg-gradient-to-r from-purple-400 to-pink-400 mx-auto mb-3 rounded-full" />
-                  <h2 className="text-lg md:text-xl text-white mb-2">
-                    ကံထူးသူအား ရွေးချယ်ရန်
-                  </h2>
-                  <p className="text-[11px] md:text-xs text-white/70 max-w-md mx-auto">
-                    ပါဝင်သူများ၏ နာမည်ကို ထည့်သွင်းပြီး Lucky Draw ပြုလုပ်လိုက်ပါ။
-                  </p>
+              <div className="relative z-10 text-center px-6 py-8 md:py-10 flex flex-col justify-center min-h-[420px] md:min-h-[480px]">
+                <div className="animate-bounce tracking-wide">
+                  <div className="text-4xl md:text-5xl">အိမ်ဖော်</div>
+                  <div className="text-xl md:text-2xl text-white/80 mt-6 md:mt-8">သက်ပိုင်(ဘာသာပြန်)</div>
                 </div>
               </div>
             </div>
