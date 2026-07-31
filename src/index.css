@@ -79,6 +79,35 @@ body {
   100% { transform: translateY(100px) rotate(720deg); opacity: 0; }
 }
 
+
+/* Slot machine draw effects */
+@keyframes slot-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.85; }
+}
+
+@keyframes spin-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes draw-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(168, 85, 247, 0.2), 0 0 30px rgba(168, 85, 247, 0.1); }
+  50% { box-shadow: 0 0 25px rgba(168, 85, 247, 0.5), 0 0 60px rgba(168, 85, 247, 0.25); }
+}
+
+.animate-slot-pulse {
+  animation: slot-pulse 0.35s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 2s linear infinite;
+}
+
+.animate-draw-glow {
+  animation: draw-glow 1.2s ease-in-out infinite;
+}
+
 @keyframes shine {
   0% { transform: translateX(-100%) skewX(-12deg); }
   100% { transform: translateX(250%) skewX(-12deg); }

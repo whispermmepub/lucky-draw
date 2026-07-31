@@ -32,7 +32,7 @@ function sortParticipants(names: string[]): string[] {
 function useSoundEffect() {
   const audioCtxRef = useRef<AudioContext | null>(null)
 
-  const playTick = useCallback(() => {
+  const playTick = useCallback((frequency?: number) => {
     try {
       if (!audioCtxRef.current) {
         audioCtxRef.current = new AudioContext()
@@ -42,7 +42,7 @@ function useSoundEffect() {
       const gain = ctx.createGain()
       osc.connect(gain)
       gain.connect(ctx.destination)
-      osc.frequency.value = 800 + Math.random() * 400
+      osc.frequency.value = frequency ?? 800 + Math.random() * 400
       osc.type = 'sine'
       gain.gain.value = 0.08
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08)
@@ -231,16 +231,24 @@ function DrawButton({
   )
 }
 
-function WinnerDisplay({ winner }: { winner: string | null }) {
-  if (!winner) return null
+function WinnerDisplay({ winner, isDrawing }: { winner: string | null; isDrawing?: boolean }) {
+  if (!winner && !isDrawing) return null
 
   return (
-    <div className="text-center py-6 animate-draw-reveal">
-      <div className="text-5xl mb-4">🏆</div>
-      <div className="text-2xl md:text-3xl font-bold display-font text-purple-400 mb-1">
-        🎉 {winner} 🎉
+    <div className={`text-center py-6 ${isDrawing ? '' : 'animate-draw-reveal'}`}>
+      <div className={`text-5xl mb-4 ${isDrawing ? 'animate-spin-slow inline-block' : 'animate-bounce inline-block'}`}>
+        {isDrawing ? '🎰' : '🏆'}
       </div>
-      <p className="text-sm text-white/60">ဂုဏ်ယူပါတယ်!</p>
+      <div
+        className={`text-2xl md:text-3xl font-bold display-font mb-1 break-words px-2 ${
+          isDrawing ? 'text-purple-300 animate-slot-pulse' : 'text-emblem'
+        }`}
+      >
+        {isDrawing ? (winner || '...') : `🎉 ${winner} 🎉`}
+      </div>
+      <p className={`text-sm ${isDrawing ? 'text-amber-300/90 animate-pulse' : 'text-white/60'}`}>
+        {isDrawing ? 'ရွေးချယ်နေသည်...' : 'ဂုဏ်ယူပါတယ်!'}
+      </p>
     </div>
   )
 }
@@ -435,7 +443,7 @@ function HomeContent() {
     return localStorage.getItem(SOUND_ENABLED_KEY) !== 'false'
   })
 
-  const drawIntervalRef = useRef<number | null>(null)
+  const timerRef = useRef<number | null>(null)
   const listEndRef = useRef<HTMLDivElement>(null)
 
   const isInitialMount = useRef(true)
@@ -503,59 +511,75 @@ function HomeContent() {
     setIsDrawing(true)
     setWinner(null)
 
-    let tickCount = 0
-    const maxTicks = 15 + Math.floor(Math.random() * 10)
+    // Slot-machine timing: slow start → fast middle → slow end
+    const totalTicks = 26 + Math.floor(Math.random() * 8)
+    const delays = Array.from({ length: totalTicks }, (_, i) => {
+      const p = i / Math.max(1, totalTicks - 1)
+      const ease = Math.sin(p * Math.PI) // 0 at ends, 1 at middle
+      return Math.round(240 - ease * 195) // 240ms edges, 45ms middle
+    })
 
-    drawIntervalRef.current = window.setInterval(() => {
-      tickCount++
+    let tickCount = 0
+
+    const reveal = () => {
+      // Final suspense moment - brief pause before reveal
+      setIsDrawing(false)
+      const finalIndex = Math.floor(Math.random() * participants.length)
+      const finalWinner = participants[finalIndex]
+      setWinner(finalWinner)
+
+      if (soundEnabled) playWin()
+
+      const now = new Date()
+      const timestamp = now.toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      })
+      const dateStr = now.toISOString().split('T')[0]
+
+      const newWinner: Winner = {
+        name: finalWinner,
+        timestamp,
+        date: dateStr,
+      }
+
+      setWinners(prev => [newWinner, ...prev])
+      // Remove the winner from participants so they can't win again
+      setParticipants(prev => prev.filter(p => p !== finalWinner))
+      setShowWinnerAlert(true)
+      toast.success(`🎉 "${finalWinner}" ကံထူးသွားပါပြီ!`)
+    }
+
+    const tick = () => {
       const randomIndex = Math.floor(Math.random() * participants.length)
       const tempWinner = participants[randomIndex]
       setWinner(tempWinner)
-      if (soundEnabled) playTick()
 
-      if (tickCount >= maxTicks) {
-        if (drawIntervalRef.current) {
-          clearInterval(drawIntervalRef.current)
-          drawIntervalRef.current = null
-        }
-        setIsDrawing(false)
-        const finalIndex = Math.floor(Math.random() * participants.length)
-        const finalWinner = participants[finalIndex]
-        setWinner(finalWinner)
+      // Pitch rises toward the middle, then falls near the reveal
+      const p = tickCount / Math.max(1, totalTicks - 1)
+      const ease = Math.sin(p * Math.PI)
+      if (soundEnabled) playTick(500 + ease * 700)
 
-        if (soundEnabled) playWin()
-
-        const now = new Date()
-        const timestamp = now.toLocaleString('en-US', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false,
-        })
-        const dateStr = now.toISOString().split('T')[0]
-
-        const newWinner: Winner = {
-          name: finalWinner,
-          timestamp,
-          date: dateStr,
-        }
-
-        setWinners(prev => [newWinner, ...prev])
-        // Remove the winner from participants so they can't win again
-        setParticipants(prev => prev.filter(p => p !== finalWinner))
-        setShowWinnerAlert(true)
-        toast.success(`🎉 "${finalWinner}" ကံထူးသွားပါပြီ!`)
+      tickCount++
+      if (tickCount >= totalTicks) {
+        reveal()
+        return
       }
-    }, 80 + Math.random() * 60)
+      timerRef.current = window.setTimeout(tick, delays[tickCount])
+    }
+
+    timerRef.current = window.setTimeout(tick, delays[0] ?? 200)
   }, [participants, isDrawing, soundEnabled, playTick, playWin, toast])
 
   useEffect(() => {
     return () => {
-      if (drawIntervalRef.current) {
-        clearInterval(drawIntervalRef.current)
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
       }
     }
   }, [])
@@ -687,8 +711,16 @@ function HomeContent() {
           </div>
 
           {/* Winner Display - below participants */}
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 mt-6 min-h-[120px] flex items-center justify-center">
-            {winner ? (
+          <div
+            className={`bg-white/5 backdrop-blur-sm border rounded-2xl p-6 mt-6 min-h-[120px] flex items-center justify-center transition-all ${
+              isDrawing
+                ? 'border-purple-500/50 animate-draw-glow'
+                : 'border-white/10'
+            }`}
+          >
+            {isDrawing ? (
+              <WinnerDisplay winner={winner} isDrawing />
+            ) : winner ? (
               <WinnerDisplay winner={winner} />
             ) : (
               <div className="text-center text-white/50">
