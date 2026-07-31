@@ -377,7 +377,18 @@ function HomeContent() {
   const drawIntervalRef = useRef<number | null>(null)
   const listEndRef = useRef<HTMLDivElement>(null)
 
+  const isInitialMount = useRef(true)
+
   useEffect(() => {
+    // Always open page at top on load
+    window.scrollTo(0, 0)
+  }, [])
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
     listEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [participants])
 
@@ -494,11 +505,13 @@ function HomeContent() {
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <img
-                  src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj_DZjS62GdjDD8grhuwODTqovHwU4_9Ec1dtgpIkwvjnQUN4I_lH8edR7SZ7CJBv6DUTCWoa1ayJDSy0TiZsWcsoxqD4bIZFlWfWEgUr33g3uiDlu8AyV7Vx9Y3BFc_JRxr6oAfPqXTKr1Ye1pmmEl4j9G0Ly1Oh23d9u2qOUOsJsdemn57WlDl8xY0oI/s518-rw/about%20us%20.png"
-                  alt="WoW Logo"
-                  className="w-10 h-10 rounded-xl object-cover shadow-lg"
-                />
+                <div className="w-12 h-12 rounded-xl bg-white p-1 shadow-lg flex items-center justify-center">
+                  <img
+                    src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj_DZjS62GdjDD8grhuwODTqovHwU4_9Ec1dtgpIkwvjnQUN4I_lH8edR7SZ7CJBv6DUTCWoa1ayJDSy0TiZsWcsoxqD4bIZFlWfWEgUr33g3uiDlu8AyV7Vx9Y3BFc_JRxr6oAfPqXTKr1Ye1pmmEl4j9G0Ly1Oh23d9u2qOUOsJsdemn57WlDl8xY0oI/s518-rw/about%20us%20.png"
+                    alt="WoW Logo"
+                    className="w-full h-full object-contain rounded-lg"
+                  />
+                </div>
                 <div>
                   <h1 className="display-font text-xl md:text-2xl text-white">WoW - Lucky Draw</h1>
                   <p className="text-xs text-white/50 hidden xs:block">Random Winner Picker</p>
