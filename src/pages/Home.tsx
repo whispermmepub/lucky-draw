@@ -475,6 +475,8 @@ function HomeContent() {
         }
 
         setWinners(prev => [newWinner, ...prev])
+        // Remove the winner from participants so they can't win again
+        setParticipants(prev => prev.filter(p => p !== finalWinner))
         toast.success(`🎉 "${finalWinner}" ကံထူးသွားပါပြီ!`)
       }
     }, 80 + Math.random() * 60)
