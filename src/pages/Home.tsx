@@ -602,11 +602,6 @@ function HomeContent() {
             )}
           </div>
 
-          {/* Draw Section */}
-          <div className="mb-8">
-            <DrawButton onClick={startDraw} disabled={participants.length === 0 || isDrawing} isDrawing={isDrawing} />
-          </div>
-
           {/* Winner Display */}
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 mb-6 min-h-[120px] flex items-center justify-center">
             {winner ? (
@@ -614,7 +609,7 @@ function HomeContent() {
             ) : (
               <div className="text-center text-white/50">
                 <div className="text-3xl mb-2">🎯</div>
-                <p className="text-sm">အထက်ပါခလုတ်ကို နှိပ်၍ ကံထူးသူအား ရွေးချယ်ပါ</p>
+                <p className="text-sm">ခလုတ်ကို နှိပ်၍ ကံထူးသူအား ရွေးချယ်ပါ</p>
               </div>
             )}
           </div>
@@ -629,6 +624,11 @@ function HomeContent() {
             </div>
             <ParticipantList participants={participants} onRemove={removeParticipant} />
             <div ref={listEndRef} />
+          </div>
+
+          {/* Draw Section - below participants */}
+          <div className="mt-6">
+            <DrawButton onClick={startDraw} disabled={participants.length === 0 || isDrawing} isDrawing={isDrawing} />
           </div>
         </main>
 
