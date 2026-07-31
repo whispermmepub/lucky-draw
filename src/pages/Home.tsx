@@ -610,18 +610,6 @@ function HomeContent() {
             )}
           </div>
 
-          {/* Winner Display */}
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 mb-6 min-h-[120px] flex items-center justify-center">
-            {winner ? (
-              <WinnerDisplay winner={winner} />
-            ) : (
-              <div className="text-center text-white/50">
-                <div className="text-3xl mb-2">🎯</div>
-                <p className="text-sm">ကံထူးရှင် ဘယ်သူ ဖြစ်မလဲ?</p>
-              </div>
-            )}
-          </div>
-
           {/* Participants List */}
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5 xs:p-6">
             <div className="flex items-center justify-between mb-4">
@@ -634,7 +622,19 @@ function HomeContent() {
             <div ref={listEndRef} />
           </div>
 
-          {/* Draw Section - below participants */}
+          {/* Winner Display - below participants */}
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 mt-6 min-h-[120px] flex items-center justify-center">
+            {winner ? (
+              <WinnerDisplay winner={winner} />
+            ) : (
+              <div className="text-center text-white/50">
+                <div className="text-3xl mb-2">🎯</div>
+                <p className="text-sm">ကံထူးရှင် ဘယ်သူ ဖြစ်မလဲ?</p>
+              </div>
+            )}
+          </div>
+
+          {/* Draw Section - below winner display */}
           <div className="mt-6">
             <DrawButton onClick={startDraw} disabled={participants.length === 0 || isDrawing} isDrawing={isDrawing} />
           </div>
