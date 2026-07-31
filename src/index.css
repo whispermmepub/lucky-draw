@@ -79,6 +79,11 @@ body {
   100% { transform: translateY(100px) rotate(720deg); opacity: 0; }
 }
 
+@keyframes shine {
+  0% { transform: translateX(-100%) skewX(-12deg); }
+  100% { transform: translateX(250%) skewX(-12deg); }
+}
+
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 15px rgba(168, 85, 247, 0.2); }
   50% { box-shadow: 0 0 30px rgba(168, 85, 247, 0.4); }
@@ -94,6 +99,10 @@ body {
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-shine {
+  animation: shine 2.5s ease-in-out infinite;
 }
 
 .confetti-piece {

@@ -73,7 +73,7 @@ function ConfettiOverlay() {
   }))
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
+    <div className="fixed inset-0 pointer-events-none z-[60] overflow-hidden">
       {pieces.map(p => (
         <div
           key={p.id}
@@ -228,6 +228,49 @@ function WinnerDisplay({ winner }: { winner: string | null }) {
   )
 }
 
+
+function WinnerAlert({ winner, onClose }: { winner: string; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-sm text-center px-8 py-10 rounded-3xl border border-amber-400/40 bg-gradient-to-b from-[#1a1206] via-[#241a08] to-[#0d0d0d] shadow-2xl shadow-amber-500/20 animate-draw-reveal overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Glow ring */}
+        <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-amber-500/40 via-yellow-400/40 to-amber-500/40 blur-2xl animate-pulse-glow pointer-events-none" />
+
+        {/* Shine beam */}
+        <div className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 animate-shine pointer-events-none" />
+
+        {/* Trophy */}
+        <div className="relative text-7xl mb-5 animate-bounce drop-shadow-[0_0_25px_rgba(251,191,36,0.5)]">🏆</div>
+
+        {/* Label */}
+        <p className="relative text-sm text-amber-200/80 mb-2 tracking-wide">🎉 ကံထူးသွားပါပြီ 🎉</p>
+
+        {/* Winner name - gold with red stroke */}
+        <div className="relative text-3xl md:text-4xl font-bold text-emblem mb-4 leading-snug break-words px-2">
+          {winner}
+        </div>
+
+        {/* Divider */}
+        <div className="relative w-28 h-[3px] bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 rounded-full mx-auto mb-6 shadow-[0_0_12px_rgba(251,191,36,0.6)]" />
+
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="relative px-8 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg shadow-amber-500/30"
+        >
+          ပိတ်မယ် ✕
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function WinnerHistory({
   winners,
   onClear,
@@ -362,6 +405,7 @@ function HomeContent() {
   const [isDrawing, setIsDrawing] = useState(false)
   const [winner, setWinner] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [showWinnerAlert, setShowWinnerAlert] = useState(false)
   const [winners, setWinners] = useState<Winner[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
@@ -485,6 +529,7 @@ function HomeContent() {
         setWinners(prev => [newWinner, ...prev])
         // Remove the winner from participants so they can't win again
         setParticipants(prev => prev.filter(p => p !== finalWinner))
+        setShowWinnerAlert(true)
         toast.success(`🎉 "${finalWinner}" ကံထူးသွားပါပြီ!`)
       }
     }, 80 + Math.random() * 60)
@@ -667,8 +712,13 @@ function HomeContent() {
           />
         )}
 
-        {/* Confetti */}
+        {/* Confetti - above modal */}
         {winner && !isDrawing && <ConfettiOverlay />}
+
+        {/* Winner Alert Modal */}
+        {showWinnerAlert && winner && (
+          <WinnerAlert winner={winner} onClose={() => setShowWinnerAlert(false)} />
+        )}
       </div>
     </div>
   )
