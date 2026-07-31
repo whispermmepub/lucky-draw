@@ -567,8 +567,8 @@ function HomeContent() {
               {/* Content */}
               <div className="relative z-10 text-center px-6 py-10 md:py-12 flex flex-col justify-center min-h-[300px] md:min-h-[360px]">
                 <div className="animate-bounce tracking-wide">
-                  <div className="text-4xl md:text-5xl">အိမ်ဖော်</div>
-                  <div className="text-xl md:text-2xl text-white/80 mt-6 md:mt-8">သက်ပိုင်(ဘာသာပြန်)</div>
+                  <div className="text-4xl md:text-5xl text-emblem">အိမ်ဖော်</div>
+                  <div className="text-xl md:text-2xl text-emblem-2 mt-6 md:mt-8">သက်ပိုင်(ဘာသာပြန်)</div>
                 </div>
               </div>
             </div>
