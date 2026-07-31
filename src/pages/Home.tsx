@@ -12,6 +12,23 @@ const STORAGE_KEY = 'lucky-draw-winners'
 const PARTICIPANTS_KEY = 'lucky-draw-participants'
 const SOUND_ENABLED_KEY = 'lucky-draw-sound'
 
+// Myanmar Unicode range: U+1000 - U+109F
+function isMyanmarName(name: string): boolean {
+  return /[\u1000-\u109F]/.test(name)
+}
+
+// Sort: Myanmar names first, then Latin names A-Z
+function sortParticipants(names: string[]): string[] {
+  return [...names].sort((a, b) => {
+    const aMy = isMyanmarName(a)
+    const bMy = isMyanmarName(b)
+    if (aMy && !bMy) return -1
+    if (!aMy && bMy) return 1
+    if (aMy && bMy) return a.localeCompare(b, 'my')
+    return a.localeCompare(b, 'en', { sensitivity: 'base' })
+  })
+}
+
 function useSoundEffect() {
   const audioCtxRef = useRef<AudioContext | null>(null)
 
@@ -396,7 +413,7 @@ function HomeContent() {
   const [participants, setParticipants] = useState<string[]>(() => {
     try {
       const stored = localStorage.getItem(PARTICIPANTS_KEY)
-      return stored ? JSON.parse(stored) : []
+      return stored ? sortParticipants(JSON.parse(stored)) : []
     } catch {
       return []
     }
@@ -463,7 +480,7 @@ function HomeContent() {
       toast.error(`"${duplicates[0]}" ရှိပြီးသားပါ`)
       return
     }
-    setParticipants(prev => [...prev, ...names])
+    setParticipants(prev => sortParticipants([...prev, ...names]))
     setInputValue('')
     toast.success(
       names.length > 1
@@ -473,7 +490,7 @@ function HomeContent() {
   }, [inputValue, participants, toast])
 
   const removeParticipant = useCallback((index: number) => {
-    setParticipants(prev => prev.filter((_, i) => i !== index))
+    setParticipants(prev => sortParticipants(prev.filter((_, i) => i !== index)))
   }, [])
 
   const startDraw = useCallback(() => {
