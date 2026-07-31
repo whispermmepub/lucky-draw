@@ -246,8 +246,8 @@ function CasinoSlot({
 
   // Build the reel: every name appears 10 rounds (shuffled each round) + winner + spacer
   const { reel, winner } = useMemo(() => {
-    const maxItems = 6000
-    const rounds = Math.max(3, Math.min(10, Math.floor((maxItems - 2) / Math.max(1, participants.length))))
+    const maxItems = 8000
+    const rounds = Math.max(3, Math.min(20, Math.floor((maxItems - 2) / Math.max(1, participants.length))))
     const names: string[] = []
     for (let r = 0; r < rounds; r++) {
       const shuffled = [...participants].sort(() => Math.random() - 0.5)
@@ -284,10 +284,10 @@ function CasinoSlot({
     // Fast phase: fly to 9 rows before the winner
     let t = 120
     schedule(() => {
-      setTransitionMs(2400)
+      setTransitionMs(3200)
       setOffset(-(w - STEP_COUNT - 1) * ROW_H)
     }, t)
-    t += 2400
+    t += 3200
 
     // Rapid tick sounds during the fast phase
     const fastTick = window.setInterval(() => {
