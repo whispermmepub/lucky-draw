@@ -248,10 +248,19 @@ function CasinoSlot({
   const { reel, winner } = useMemo(() => {
     const maxItems = 8000
     const rounds = Math.max(3, Math.min(20, Math.floor((maxItems - 2) / Math.max(1, participants.length))))
+    // Fisher-Yates fair shuffle each round - names spin in random order
+    const shuffle = (arr: string[]): string[] => {
+      const a = [...arr]
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[a[i], a[j]] = [a[j], a[i]]
+      }
+      return a
+    }
+
     const names: string[] = []
     for (let r = 0; r < rounds; r++) {
-      const shuffled = [...participants].sort(() => Math.random() - 0.5)
-      names.push(...shuffled)
+      names.push(...shuffle(participants))
     }
     const win = participants[Math.floor(Math.random() * participants.length)]
     names.push(win, '🎰')
