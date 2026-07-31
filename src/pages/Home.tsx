@@ -273,13 +273,9 @@ function CasinoSlot({
   const [finished, setFinished] = useState(false)
 
   useEffect(() => {
-    // Double suspense spin:
-    // 1) Main fast spin
-    // 2) Step phase 1: slow steps - "is it him?"
-    // 3) Sudden fast re-spin kick
-    // 4) Step phase 2: slow steps to the winner - "is it him? is it me?"
-    // 5) Final reveal
-    const w = reel.length - 2 // winner index (w >= 20 always)
+    // Triple suspense spin (~30s):
+    // Main fast spin → [steps "him? me?" → sudden re-spin] × 3 → final steps → reveal
+    const w = reel.length - 2 // winner index
     let cancelled = false
     let fastTick: number | null = null
     const timers: number[] = []
@@ -298,66 +294,84 @@ function CasinoSlot({
         fastTick = null
       }
     }
+    const clunk = () => {
+      if (soundEnabled) playTick(180 + Math.random() * 70)
+    }
+    const stepEase = 'cubic-bezier(0.2, 0.7, 0.3, 1)'
+    const spinEase = 'cubic-bezier(0.55, 0, 0.95, 0.35)'
 
-    // --- Phase 1: main fast spin to 30 rows before the winner ---
-    const p1 = Math.max(1, w - 30)
-    let t = 120
+    // --- Phase 1: main fast spin ---
+    const p1 = Math.max(1, w - 50)
+    let t = 150
     startFastTicks()
     schedule(() => {
-      setEase('cubic-bezier(0.12, 0.8, 0.2, 1)')
-      setTransitionMs(2600)
+      setEase(spinEase)
+      setTransitionMs(4500)
       setOffset(-(p1 - 1) * ROW_H)
     }, t)
-    t += 2600
-
-    // --- Phase 2: step 1 - four slow steps ---
-    const step1Pauses = [350, 450, 550, 650]
-    for (let i = 1; i <= 4; i++) {
-      const m = p1 + i
-      schedule(() => {
-        stopFastTicks()
-        setEase('cubic-bezier(0.2, 0.7, 0.3, 1)')
-        setTransitionMs(230)
-        setOffset(-(m - 1) * ROW_H)
-        if (soundEnabled) playTick(180 + Math.random() * 70)
-      }, t)
-      t += step1Pauses[i - 1]
-    }
-
-    // --- Phase 3: sudden fast re-spin kick (forward to 8 rows before winner) ---
-    t += 300 // moment of silence - "is it stopping?"
-    schedule(() => {
-      startFastTicks()
-      setEase('cubic-bezier(0.55, 0, 0.95, 0.35)')
-      setTransitionMs(1600)
-      setOffset(-(w - 8 - 1) * ROW_H)
-    }, t)
-    t += 1600
+    t += 4500
     schedule(() => {
       stopFastTicks()
-      if (soundEnabled) playTick(200)
     }, t)
-    t += 250
 
-    // --- Phase 4: step 2 - eight slow steps to the winner ---
-    const step2Pauses = [340, 400, 470, 550, 650, 770, 920, 1100]
-    const step2Transitions = [230, 230, 240, 240, 260, 280, 300, 420]
-    for (let i = 1; i <= 8; i++) {
-      const m = w - 8 + i
+    // --- Cycles: slow steps + sudden re-spin, x3 ---
+    const cycles = [
+      { start: p1 + 1, respinTo: Math.max(1, w - 35), respinMs: 2500, pauses: [350, 420, 500, 600, 700], trans: 230 },
+      { start: Math.max(1, w - 35) + 1, respinTo: Math.max(1, w - 20), respinMs: 2500, pauses: [380, 450, 530, 630, 740], trans: 230 },
+      { start: Math.max(1, w - 20) + 1, respinTo: Math.max(1, w - 9), respinMs: 2200, pauses: [400, 480, 570, 680, 800], trans: 240 },
+    ]
+
+    for (const cyc of cycles) {
+      // Slow steps - "is it him?"
+      for (let i = 0; i < cyc.pauses.length; i++) {
+        const m = Math.min(w - 9, cyc.start + i)
+        const pause = cyc.pauses[i]
+        const trans = cyc.trans
+        schedule(() => {
+          stopFastTicks()
+          setEase(stepEase)
+          setTransitionMs(trans)
+          setOffset(-(m - 1) * ROW_H)
+          clunk()
+        }, t)
+        t += pause
+      }
+
+      // Sudden fast re-spin
+      t += 300 // moment of silence - "is it stopping?"
       schedule(() => {
-        setEase('cubic-bezier(0.2, 0.7, 0.3, 1)')
-        setTransitionMs(step2Transitions[i - 1])
-        setOffset(-(m - 1) * ROW_H)
-        if (soundEnabled) playTick(180 + Math.random() * 70)
+        startFastTicks()
+        setEase(spinEase)
+        setTransitionMs(cyc.respinMs)
+        setOffset(-(cyc.respinTo - 1) * ROW_H)
       }, t)
-      t += step2Pauses[i - 1]
+      t += cyc.respinMs
+      schedule(() => {
+        stopFastTicks()
+        if (soundEnabled) playTick(200)
+      }, t)
+      t += 250
     }
 
-    // --- Phase 5: final reveal ---
+    // --- Final steps to the winner ---
+    const finalPauses = [400, 470, 550, 650, 770, 920, 1100, 1300, 1500]
+    const finalTrans = [230, 230, 240, 240, 260, 280, 300, 320, 420]
+    for (let i = 1; i <= 9; i++) {
+      const m = w - 9 + i
+      schedule(() => {
+        setEase(stepEase)
+        setTransitionMs(finalTrans[i - 1])
+        setOffset(-(m - 1) * ROW_H)
+        clunk()
+      }, t)
+      t += finalPauses[i - 1]
+    }
+
+    // --- Final reveal ---
     schedule(() => {
       setFinished(true)
       onFinished(winner)
-    }, t + 700)
+    }, t + 1200)
 
     return () => {
       cancelled = true
