@@ -12,9 +12,9 @@ const STORAGE_KEY = 'lucky-draw-winners'
 const PARTICIPANTS_KEY = 'lucky-draw-participants'
 const SOUND_ENABLED_KEY = 'lucky-draw-sound'
 
-// Myanmar Unicode range: U+1000 - U+109F
+// Myanmar Unicode range: U+1000 - U+109F (only check first character)
 function isMyanmarName(name: string): boolean {
-  return /[\u1000-\u109F]/.test(name)
+  return /^[\u1000-\u109F]/.test(name.trim())
 }
 
 // Sort: Myanmar names first, then Latin names A-Z
