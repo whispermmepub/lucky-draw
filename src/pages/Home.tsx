@@ -545,7 +545,7 @@ function HomeContent() {
         <main className="container mx-auto px-4 py-8 max-w-3xl">
           {/* Hero Section */}
           <div className="mb-10">
-            <div className="relative rounded-2xl overflow-hidden">
+            <div className="relative rounded-2xl overflow-hidden min-h-[420px] md:min-h-[480px]">
               {/* Background with subtle overlay */}
               <div
                 className="absolute inset-0 bg-cover bg-center"
@@ -553,21 +553,23 @@ function HomeContent() {
                   backgroundImage: 'url("https://blogger.googleusercontent.com/img/a/AVvXsEjFxEJfeaZUGIHfVF-u4HzxgJOMhnT8WQt9CwOieMhfDZ6_8QI54yPRvG3L6osr9R2KjiT2vZH1oKitHmxmP5ZutUYLcdYAdfy_lfe4lf75OqWd4vqwIkTeI86Yq4cPwbc2AwuMQ_sMJ-gzHlRoVWrJIxADv5l6qoi0gp5nwn1OPPp5DHyACOUZix6PAsc=rw")',
                 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/60" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/30" />
               
               {/* Content */}
-              <div className="relative z-10 text-center py-16 md:py-20 px-6">
-                <div className="font-bold mb-4 animate-bounce tracking-wide">
+              <div className="relative z-10 text-center px-6 py-8 md:py-10 flex flex-col justify-between min-h-[420px] md:min-h-[480px]">
+                <div className="animate-bounce tracking-wide pt-4">
                   <div className="text-4xl md:text-5xl mb-1">အိမ်ဖော်</div>
-                  <div className="text-xl md:text-2xl text-white/70">သက်ပိုင်(ဘာသာပြန်)</div>
+                  <div className="text-xl md:text-2xl text-white/80">သက်ပိုင်(ဘာသာပြန်)</div>
                 </div>
-                <div className="w-16 h-0.5 bg-gradient-to-r from-purple-400 to-pink-400 mx-auto mb-4 rounded-full" />
-                <h2 className="text-2xl md:text-3xl text-white/90 mb-3">
-                  ကံထူးသူအား ရွေးချယ်ရန်
-                </h2>
-                <p className="text-white/60 text-sm md:text-base max-w-md mx-auto">
-                  ပါဝင်သူများ၏ နာမည်ကို ထည့်သွင်းပြီး Lucky Draw ပြုလုပ်လိုက်ပါ။
-                </p>
+                <div className="pb-6 md:pb-10">
+                  <div className="w-16 h-0.5 bg-gradient-to-r from-purple-400 to-pink-400 mx-auto mb-4 rounded-full" />
+                  <h2 className="text-xl md:text-2xl text-white mb-2">
+                    ကံထူးသူအား ရွေးချယ်ရန်
+                  </h2>
+                  <p className="text-xs md:text-sm text-white/70 max-w-md mx-auto">
+                    ပါဝင်သူများ၏ နာမည်ကို ထည့်သွင်းပြီး Lucky Draw ပြုလုပ်လိုက်ပါ။
+                  </p>
+                </div>
               </div>
             </div>
           </div>
