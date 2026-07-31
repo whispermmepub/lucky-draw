@@ -150,7 +150,7 @@ function ParticipantList({
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-3 gap-2">
+    <div className="flex flex-col gap-2">
       {participants.map((name, i) => (
         <div
           key={`${name}-${i}`}
@@ -663,8 +663,10 @@ function HomeContent() {
                 {participants.length.toLocaleString()} / {MAX_PARTICIPANTS.toLocaleString()}
               </span>
             </div>
-            <ParticipantList participants={participants} onRemove={removeParticipant} />
-            <div ref={listEndRef} />
+            <div className="max-h-[420px] overflow-y-auto pr-1 -mr-1">
+              <ParticipantList participants={participants} onRemove={removeParticipant} />
+              <div ref={listEndRef} />
+            </div>
           </div>
 
           {/* Winner Display - below participants */}
