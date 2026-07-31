@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { ToastProvider, useToast } from '../components/Toast.tsx'
 
 interface Winner {
@@ -231,6 +231,122 @@ function DrawButton({
   )
 }
 
+function CasinoSlot({
+  participants,
+  soundEnabled,
+  playTick,
+  onFinished,
+}: {
+  participants: string[]
+  soundEnabled: boolean
+  playTick: (freq?: number) => void
+  onFinished: (winner: string) => void
+}) {
+  const ROW_H = 48
+
+  // Build the reel: every name appears 10 rounds (shuffled each round) + winner + spacer
+  const { reel, winner } = useMemo(() => {
+    const maxItems = 6000
+    const rounds = Math.max(3, Math.min(10, Math.floor((maxItems - 2) / Math.max(1, participants.length))))
+    const names: string[] = []
+    for (let r = 0; r < rounds; r++) {
+      const shuffled = [...participants].sort(() => Math.random() - 0.5)
+      names.push(...shuffled)
+    }
+    const win = participants[Math.floor(Math.random() * participants.length)]
+    names.push(win, '🎰')
+    return { reel: names, winner: win }
+  }, [participants])
+
+  const [offset, setOffset] = useState(0)
+  const [finished, setFinished] = useState(false)
+
+  useEffect(() => {
+    // Start the spin shortly after mount
+    const startT = window.setTimeout(() => {
+      const winnerIndex = reel.length - 2
+      // Stop with winner in the middle row of the 3-row window
+      setOffset(-(winnerIndex - 1) * ROW_H)
+    }, 120)
+
+    // Tick sounds during the spin
+    const tickInterval = window.setInterval(() => {
+      if (soundEnabled) playTick(600 + Math.random() * 300)
+    }, 60)
+
+    // Finish after the 5s spin transition
+    const finishT = window.setTimeout(() => {
+      window.clearInterval(tickInterval)
+      setFinished(true)
+      onFinished(winner)
+    }, 5350)
+
+    return () => {
+      window.clearTimeout(startT)
+      window.clearTimeout(finishT)
+      window.clearInterval(tickInterval)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div className="w-full max-w-md mx-auto rounded-3xl p-4 md:p-5 bg-gradient-to-b from-amber-800/90 via-amber-950/90 to-black/90 border-4 border-amber-500/60 shadow-[0_0_50px_rgba(245,158,11,0.25)] animate-draw-reveal">
+      {/* Header */}
+      <div className="text-center mb-3">
+        <span className="text-amber-300 font-bold tracking-[0.3em] text-xs md:text-sm">🎰 LUCKY DRAW 🎰</span>
+      </div>
+
+      {/* Window */}
+      <div className="relative rounded-xl overflow-hidden border-[3px] border-amber-400/70 bg-black/95 h-[144px]">
+        {/* Side lights */}
+        <div className="absolute left-1.5 top-1/2 -translate-y-1/2 flex flex-col gap-1.5 z-20">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" style={{ animationDelay: '0.2s' }} />
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" style={{ animationDelay: '0.4s' }} />
+        </div>
+        <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex flex-col gap-1.5 z-20">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" style={{ animationDelay: '0.3s' }} />
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" style={{ animationDelay: '0.5s' }} />
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" style={{ animationDelay: '0.1s' }} />
+        </div>
+
+        {/* Top/bottom fades */}
+        <div className="absolute top-0 left-0 right-0 h-5 bg-gradient-to-b from-black/90 to-transparent z-10" />
+        <div className="absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-t from-black/90 to-transparent z-10" />
+
+        {/* Center highlight */}
+        <div
+          className={`absolute left-2 right-2 top-1/2 -translate-y-1/2 h-12 z-10 pointer-events-none transition-all duration-300 rounded-md ${
+            finished
+              ? 'bg-amber-400/25 border-y-2 border-amber-400 shadow-[0_0_25px_rgba(251,191,36,0.6)]'
+              : 'border-y-2 border-amber-500/60'
+          }`}
+        />
+
+        {/* Reel strip */}
+        <div
+          className="transition-transform duration-[5000ms] ease-[cubic-bezier(0.15,0.85,0.25,1)] will-change-transform"
+          style={{ transform: `translateY(${offset}px)` }}
+        >
+          {reel.map((name, i) => (
+            <div
+              key={`${i}-${name}`}
+              className="h-12 flex items-center justify-center px-6 truncate text-base md:text-lg font-bold text-white"
+            >
+              {name}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className={`text-center mt-3 text-xs tracking-widest ${finished ? 'text-amber-300 font-bold' : 'text-amber-200/70 animate-pulse'}`}>
+        {finished ? '🏆 WINNER! 🏆' : 'SPINNING...'}
+      </div>
+    </div>
+  )
+}
+
 function WinnerDisplay({ winner, isDrawing }: { winner: string | null; isDrawing?: boolean }) {
   if (!winner && !isDrawing) return null
 
@@ -443,7 +559,6 @@ function HomeContent() {
     return localStorage.getItem(SOUND_ENABLED_KEY) !== 'false'
   })
 
-  const timerRef = useRef<number | null>(null)
   const listEndRef = useRef<HTMLDivElement>(null)
 
   const isInitialMount = useRef(true)
@@ -508,81 +623,42 @@ function HomeContent() {
     }
     if (isDrawing) return
 
-    setIsDrawing(true)
     setWinner(null)
+    setIsDrawing(true)
+  }, [participants, isDrawing, toast])
 
-    // Slot-machine timing: slow start → fast middle → slow end
-    const totalTicks = 26 + Math.floor(Math.random() * 8)
-    const delays = Array.from({ length: totalTicks }, (_, i) => {
-      const p = i / Math.max(1, totalTicks - 1)
-      const ease = Math.sin(p * Math.PI) // 0 at ends, 1 at middle
-      return Math.round(240 - ease * 195) // 240ms edges, 45ms middle
+  const handleWinnerSelected = useCallback((finalWinner: string) => {
+    setIsDrawing(false)
+    setWinner(finalWinner)
+
+    if (soundEnabled) playWin()
+
+    const now = new Date()
+    const timestamp = now.toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
     })
+    const dateStr = now.toISOString().split('T')[0]
 
-    let tickCount = 0
-
-    const reveal = () => {
-      // Final suspense moment - brief pause before reveal
-      setIsDrawing(false)
-      const finalIndex = Math.floor(Math.random() * participants.length)
-      const finalWinner = participants[finalIndex]
-      setWinner(finalWinner)
-
-      if (soundEnabled) playWin()
-
-      const now = new Date()
-      const timestamp = now.toLocaleString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      })
-      const dateStr = now.toISOString().split('T')[0]
-
-      const newWinner: Winner = {
-        name: finalWinner,
-        timestamp,
-        date: dateStr,
-      }
-
-      setWinners(prev => [newWinner, ...prev])
-      // Remove the winner from participants so they can't win again
-      setParticipants(prev => prev.filter(p => p !== finalWinner))
-      setShowWinnerAlert(true)
-      toast.success(`🎉 "${finalWinner}" ကံထူးသွားပါပြီ!`)
+    const newWinner: Winner = {
+      name: finalWinner,
+      timestamp,
+      date: dateStr,
     }
 
-    const tick = () => {
-      const randomIndex = Math.floor(Math.random() * participants.length)
-      const tempWinner = participants[randomIndex]
-      setWinner(tempWinner)
+    setWinners(prev => [newWinner, ...prev])
+    // Remove the winner from participants so they can't win again
+    setParticipants(prev => prev.filter(p => p !== finalWinner))
+    setShowWinnerAlert(true)
+    toast.success(`🎉 "${finalWinner}" ကံထူးသွားပါပြီ!`)
+  }, [soundEnabled, playWin, toast])
 
-      // Pitch rises toward the middle, then falls near the reveal
-      const p = tickCount / Math.max(1, totalTicks - 1)
-      const ease = Math.sin(p * Math.PI)
-      if (soundEnabled) playTick(500 + ease * 700)
 
-      tickCount++
-      if (tickCount >= totalTicks) {
-        reveal()
-        return
-      }
-      timerRef.current = window.setTimeout(tick, delays[tickCount])
-    }
-
-    timerRef.current = window.setTimeout(tick, delays[0] ?? 200)
-  }, [participants, isDrawing, soundEnabled, playTick, playWin, toast])
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current)
-      }
-    }
-  }, [])
 
   const handleClearWinners = useCallback(() => {
     setWinners([])
@@ -711,24 +787,27 @@ function HomeContent() {
           </div>
 
           {/* Winner Display - below participants */}
-          <div
-            className={`bg-white/5 backdrop-blur-sm border rounded-2xl p-6 mt-6 min-h-[120px] flex items-center justify-center transition-all ${
-              isDrawing
-                ? 'border-purple-500/50 animate-draw-glow'
-                : 'border-white/10'
-            }`}
-          >
-            {isDrawing ? (
-              <WinnerDisplay winner={winner} isDrawing />
-            ) : winner ? (
-              <WinnerDisplay winner={winner} />
-            ) : (
-              <div className="text-center text-white/50">
-                <div className="text-3xl mb-2">🎯</div>
-                <p className="text-sm">ကံထူးရှင် ဘယ်သူ ဖြစ်မလဲ?</p>
-              </div>
-            )}
-          </div>
+          {isDrawing ? (
+            <div className="mt-6">
+              <CasinoSlot
+                participants={participants}
+                soundEnabled={soundEnabled}
+                playTick={playTick}
+                onFinished={handleWinnerSelected}
+              />
+            </div>
+          ) : (
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 mt-6 min-h-[120px] flex items-center justify-center">
+              {winner ? (
+                <WinnerDisplay winner={winner} />
+              ) : (
+                <div className="text-center text-white/50">
+                  <div className="text-3xl mb-2">🎯</div>
+                  <p className="text-sm">ကံထူးရှင် ဘယ်သူ ဖြစ်မလဲ?</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Draw Section - below winner display */}
           <div className="mt-6">
