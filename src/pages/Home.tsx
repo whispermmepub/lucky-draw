@@ -546,19 +546,26 @@ function HomeContent() {
 
         <main className="container mx-auto px-4 py-8 max-w-3xl">
           {/* Hero Section */}
-          <div className="mb-10">
-            <div className="relative rounded-2xl overflow-hidden min-h-[420px] md:min-h-[480px]">
-              {/* Background with subtle overlay */}
+          <div className="mb-8">
+            <div className="relative overflow-hidden min-h-[300px] md:min-h-[360px]">
+              {/* Background image - smaller, centered */}
               <div
-                className="absolute inset-0 bg-cover bg-center"
+                className="absolute inset-0"
                 style={{
                   backgroundImage: 'url("https://blogger.googleusercontent.com/img/a/AVvXsEjFxEJfeaZUGIHfVF-u4HzxgJOMhnT8WQt9CwOieMhfDZ6_8QI54yPRvG3L6osr9R2KjiT2vZH1oKitHmxmP5ZutUYLcdYAdfy_lfe4lf75OqWd4vqwIkTeI86Yq4cPwbc2AwuMQ_sMJ-gzHlRoVWrJIxADv5l6qoi0gp5nwn1OPPp5DHyACOUZix6PAsc=rw")',
+                  backgroundSize: '60% auto',
+                  backgroundPosition: 'center 25%',
+                  backgroundRepeat: 'no-repeat',
                 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/30" />
+              {/* Edge fade masks - blend into page background */}
+              <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-transparent to-[#0a0a0a]" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a] via-transparent to-[#0a0a0a]" />
+              <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#0a0a0a] to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
               
               {/* Content */}
-              <div className="relative z-10 text-center px-6 py-8 md:py-10 flex flex-col justify-center min-h-[420px] md:min-h-[480px]">
+              <div className="relative z-10 text-center px-6 py-10 md:py-12 flex flex-col justify-center min-h-[300px] md:min-h-[360px]">
                 <div className="animate-bounce tracking-wide">
                   <div className="text-4xl md:text-5xl">အိမ်ဖော်</div>
                   <div className="text-xl md:text-2xl text-white/80 mt-6 md:mt-8">သက်ပိုင်(ဘာသာပြန်)</div>
