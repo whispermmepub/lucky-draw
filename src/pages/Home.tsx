@@ -462,7 +462,7 @@ function CasinoSlot({
     }, t)
     t += 220
 
-    // --- Cycles: 2-4 rounds, each randomly different ---
+    // --- Cycles: 3-4 rounds, each randomly different ---
     const cycleCount = randInt(3, 4)
     const endZone = Math.max(1, w - 9) // reel lands here after the last re-spin
     let cursor = p1 + 1
@@ -513,9 +513,6 @@ function CasinoSlot({
       schedule(() => {
         if (soundEnabled) playHeartbeat()
       }, t)
-      schedule(() => {
-        if (soundEnabled && holdMs >= 600) playHeartbeat()
-      }, t + 420)
       t += holdMs
 
       // ...then sudden fast re-spin!
@@ -872,9 +869,12 @@ function HomeContent() {
 
   const listEndRef = useRef<HTMLDivElement>(null)
   const listScrollRef = useRef<HTMLDivElement>(null)
+  const prevLenRef = useRef(0)
   const [spotlightIndex, setSpotlightIndex] = useState<number | null>(null)
   const spotlightRef = useRef<number | null>(null)
   const [winnerFoundName, setWinnerFoundName] = useState<string | null>(null)
+  const revealTimeoutRef = useRef<number | null>(null)
+  const removeTimeoutRef = useRef<number | null>(null)
 
   const isInitialMount = useRef(true)
 
@@ -886,9 +886,14 @@ function HomeContent() {
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false
+      prevLenRef.current = participants.length
       return
     }
-    listEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // Only auto-scroll to the end when names were added (not when a winner is removed)
+    if (participants.length > prevLenRef.current) {
+      listEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+    prevLenRef.current = participants.length
   }, [participants])
 
   useEffect(() => {
@@ -983,7 +988,18 @@ function HomeContent() {
     }
     if (isDrawing) return
 
+    // Clear any pending winner reveal/removal timers from the previous draw
+    if (revealTimeoutRef.current !== null) {
+      window.clearTimeout(revealTimeoutRef.current)
+      revealTimeoutRef.current = null
+    }
+    if (removeTimeoutRef.current !== null) {
+      window.clearTimeout(removeTimeoutRef.current)
+      removeTimeoutRef.current = null
+    }
     setWinner(null)
+    setWinnerFoundName(null)
+    setShowWinnerAlert(false)
     setIsDrawing(true)
   }, [participants, isDrawing, toast])
 
@@ -1026,12 +1042,12 @@ function HomeContent() {
     })
 
     // Show the winner clearly, then remove them from the list
-    window.setTimeout(() => {
+    revealTimeoutRef.current = window.setTimeout(() => {
       setShowWinnerAlert(true)
       toast.success(`🎉 "${finalWinner}" ကံထူးသွားပါပြီ!`)
     }, 1200)
 
-    window.setTimeout(() => {
+    removeTimeoutRef.current = window.setTimeout(() => {
       setParticipants(prev => prev.filter(p => p !== finalWinner))
       setWinnerFoundName(null)
     }, 1900)
@@ -1218,7 +1234,7 @@ function HomeContent() {
               />
             </div>
           ) : (
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 mt-6 min-h-[120px] flex items-center justify-center">
+            <div className="bg-black/40 backdrop-blur-sm border border-cyan-400/15 rounded-2xl p-6 mt-6 min-h-[120px] flex items-center justify-center shadow-[0_0_20px_rgba(0,240,255,0.05)]">
               {winner ? (
                 <WinnerDisplay winner={winner} />
               ) : (

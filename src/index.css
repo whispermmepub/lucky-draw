@@ -9,9 +9,19 @@
 }
 
 @theme {
+  --color-background: #0a0a0a;
   --font-display: "MyanmarAyarTyepwriter", "Playfair Display", serif;
   --font-sans: "MyanmarAyarTyepwriter", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mont: "MyanmarAyarTyepwriter", "Montserrat", sans-serif;
+}
+
+/* Typography helpers used across the app */
+.display-font {
+  font-family: var(--font-display);
+}
+
+.mont-font {
+  font-family: var(--font-mont);
 }
 
 * {
