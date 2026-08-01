@@ -8,6 +8,10 @@ interface Winner {
 }
 
 const MAX_PARTICIPANTS = 5000
+// Participants list geometry (see CSS: max-h-[420px], row = p-3 + text-sm + gap-2)
+const LIST_HEIGHT = 420
+const LIST_ROW_PITCH = 52
+const LIST_SPACER = (LIST_HEIGHT - LIST_ROW_PITCH) / 2
 const STORAGE_KEY = 'lucky-draw-winners'
 const PARTICIPANTS_KEY = 'lucky-draw-participants'
 const SOUND_ENABLED_KEY = 'lucky-draw-sound'
@@ -271,11 +275,13 @@ function ParticipantList({
   onRemove,
   spotlightIndex,
   winnerFoundName,
+  showSpacers,
 }: {
   participants: string[]
   onRemove: (index: number) => void
   spotlightIndex: number | null
   winnerFoundName: string | null
+  showSpacers: boolean
 }) {
   if (participants.length === 0) {
     return (
@@ -288,18 +294,28 @@ function ParticipantList({
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      {participants.map((name, i) => (
-        <ParticipantRow
-          key={`${name}-${i}`}
-          name={name}
-          index={i}
-          isSpotlight={spotlightIndex === i}
-          isWinner={winnerFoundName === name}
-          onRemove={onRemove}
-        />
-      ))}
-    </div>
+    <>
+      {/* Top/bottom spacers: while the draw spins, every name (first & last too)
+          can reach the center scan line */}
+      {showSpacers && (
+        <div className="pointer-events-none" style={{ height: LIST_SPACER }} aria-hidden="true" />
+      )}
+      <div className="flex flex-col gap-2">
+        {participants.map((name, i) => (
+          <ParticipantRow
+            key={`${name}-${i}`}
+            name={name}
+            index={i}
+            isSpotlight={spotlightIndex === i}
+            isWinner={winnerFoundName === name}
+            onRemove={onRemove}
+          />
+        ))}
+      </div>
+      {showSpacers && (
+        <div className="pointer-events-none" style={{ height: LIST_SPACER }} aria-hidden="true" />
+      )}
+    </>
   )
 }
 
@@ -900,8 +916,10 @@ function HomeContent() {
     }
     let raf = 0
     const max = el.scrollHeight - el.clientHeight
+    const N = participants.length
+    const H = el.clientHeight
     // Measure the actual row pitch once (layout is stable during the draw)
-    let pitch = 52
+    let pitch = LIST_ROW_PITCH
     const firstRows = el.querySelectorAll('[data-row]')
     if (firstRows.length >= 2) {
       const p = (firstRows[1] as HTMLElement).offsetTop - (firstRows[0] as HTMLElement).offsetTop
@@ -914,9 +932,11 @@ function HomeContent() {
     const tick = (now: number) => {
       const p = (1 - Math.cos((2 * Math.PI * (now - start)) / period)) / 2 // 0→1→0, smooth
       if (max > 0) el.scrollTop = p * max
+      // With the top/bottom spacers, scrollTop 0 centers the FIRST name and
+      // scrollTop max centers the LAST name - nobody is left out
       const idx = Math.min(
-        Math.max(0, Math.floor((el.scrollTop + el.clientHeight / 2) / pitch)),
-        firstRows.length - 1,
+        N - 1,
+        Math.max(0, Math.floor((el.scrollTop + H / 2 - LIST_SPACER) / pitch)),
       )
       if (idx !== spotlightRef.current) {
         spotlightRef.current = idx
@@ -1176,6 +1196,7 @@ function HomeContent() {
                 onRemove={removeParticipant}
                 spotlightIndex={spotlightIndex}
                 winnerFoundName={winnerFoundName}
+                showSpacers={isDrawing}
               />
               <div ref={listEndRef} />
             </div>
