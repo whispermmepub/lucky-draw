@@ -946,7 +946,7 @@ function HomeContent() {
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [isDrawing])
+  }, [isDrawing, participants.length])
 
   const addParticipant = useCallback(() => {
     const names = inputValue
