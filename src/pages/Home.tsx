@@ -295,7 +295,7 @@ function CasinoSlot({
       names.push(...shuffle(participants))
     }
     const win = participants[Math.floor(Math.random() * participants.length)]
-    names.push(win, '🎰')
+    names.push(win, '')
     return { reel: names, winner: win }
   }, [participants])
 
