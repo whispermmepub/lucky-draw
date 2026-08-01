@@ -696,6 +696,7 @@ function HomeContent() {
   })
 
   const listEndRef = useRef<HTMLDivElement>(null)
+  const listScrollRef = useRef<HTMLDivElement>(null)
 
   const isInitialMount = useRef(true)
 
@@ -723,6 +724,46 @@ function HomeContent() {
   useEffect(() => {
     localStorage.setItem(SOUND_ENABLED_KEY, String(soundEnabled))
   }, [soundEnabled])
+
+  // Auto-scroll the participants list while the draw is spinning
+  useEffect(() => {
+    const el = listScrollRef.current
+    if (!el) return
+    if (!isDrawing) {
+      el.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    let raf = 0
+    let last = performance.now()
+    let mode: 'down' | 'rewind' = 'down'
+    let rewindStart = 0
+    let rewindFrom = 0
+    const SCROLL_SPEED = 85 // px per second
+    const REWIND_MS = 900
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000)
+      last = now
+      const max = el.scrollHeight - el.clientHeight
+      if (max > 0) {
+        if (mode === 'down') {
+          el.scrollTop = Math.min(max, el.scrollTop + SCROLL_SPEED * dt)
+          if (el.scrollTop >= max) {
+            mode = 'rewind'
+            rewindStart = now
+            rewindFrom = max
+          }
+        } else {
+          const p = Math.min(1, (now - rewindStart) / REWIND_MS)
+          const eased = 1 - Math.pow(1 - p, 3) // ease-out
+          el.scrollTop = rewindFrom * (1 - eased)
+          if (p >= 1) mode = 'down'
+        }
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [isDrawing])
 
   const addParticipant = useCallback(() => {
     const names = inputValue
@@ -909,14 +950,20 @@ function HomeContent() {
           </div>
 
           {/* Participants List */}
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5 xs:p-6">
+          <div
+            className={`bg-white/5 backdrop-blur-sm border rounded-2xl p-5 xs:p-6 transition-all duration-300 ${
+              isDrawing
+                ? 'border-purple-500/40 shadow-[0_0_30px_rgba(168,85,247,0.15)]'
+                : 'border-white/10'
+            }`}
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="display-font text-lg text-white">📝 ပါဝင်သူများ</h3>
               <span className="text-xs text-white/50">
                 {participants.length.toLocaleString()} / {MAX_PARTICIPANTS.toLocaleString()}
               </span>
             </div>
-            <div className="max-h-[420px] overflow-y-auto pr-1 -mr-1">
+            <div ref={listScrollRef} className="max-h-[420px] overflow-y-auto pr-1 -mr-1">
               <ParticipantList participants={participants} onRemove={removeParticipant} />
               <div ref={listEndRef} />
             </div>
