@@ -426,7 +426,7 @@ function CasinoSlot({
     <div className="w-full max-w-md mx-auto rounded-3xl p-4 md:p-5 bg-gradient-to-b from-amber-800/90 via-amber-950/90 to-black/90 border-4 border-amber-500/60 shadow-[0_0_50px_rgba(245,158,11,0.25)] animate-draw-reveal">
       {/* Header */}
       <div className="text-center mb-3">
-        <span className="text-amber-300 font-bold tracking-[0.3em] text-xs md:text-sm">🎰 LUCKY DRAW 🎰</span>
+        <span className="text-amber-300 font-bold tracking-[0.3em] text-xs md:text-sm">✦ LUCKY DRAW ✦</span>
       </div>
 
       {/* Window */}
@@ -489,7 +489,7 @@ function WinnerDisplay({ winner, isDrawing }: { winner: string | null; isDrawing
   return (
     <div className={`text-center py-6 ${isDrawing ? '' : 'animate-draw-reveal'}`}>
       <div className={`text-5xl mb-4 ${isDrawing ? 'animate-spin-slow inline-block' : 'animate-bounce inline-block'}`}>
-        {isDrawing ? '🎰' : '🏆'}
+        {isDrawing ? '✦' : '🏆'}
       </div>
       <div
         className={`text-2xl md:text-3xl font-bold display-font mb-1 break-words px-2 ${
