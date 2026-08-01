@@ -1128,6 +1128,9 @@ function HomeContent() {
                 <div className="animate-bounce tracking-wide">
                   <div className="text-4xl md:text-5xl text-emblem">အိမ်ဖော်</div>
                   <div className="text-xl md:text-2xl text-emblem-2 mt-6 md:mt-8">သက်ပိုင်(ဘာသာပြန်)</div>
+                  <div className="mt-4 md:mt-6 text-sm md:text-base text-cyan-300/90 tracking-wider drop-shadow-[0_0_8px_rgba(0,240,255,0.5)]">
+                    ◤ WoW မှ စာဖတ်သူများအတွက် သီးသန့် ◢
+                  </div>
                 </div>
               </div>
 
