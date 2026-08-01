@@ -147,23 +147,6 @@ body {
   font-family: 'Share Tech Mono', ui-monospace, monospace;
 }
 
-.cyber-grid {
-  background-image:
-    linear-gradient(rgba(0, 240, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 240, 255, 0.045) 1px, transparent 1px);
-  background-size: 42px 42px;
-}
-
-.scanlines {
-  background-image: repeating-linear-gradient(
-    0deg,
-    rgba(0, 0, 0, 0.16) 0px,
-    rgba(0, 0, 0, 0.16) 1px,
-    transparent 1px,
-    transparent 4px
-  );
-}
-
 @keyframes cyber-flicker {
   0%, 91%, 100% { opacity: 1; }
   92% { opacity: 0.55; }

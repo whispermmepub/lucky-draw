@@ -213,10 +213,12 @@ function ParticipantList({
   participants,
   onRemove,
   spotlightIndex,
+  winnerFoundName,
 }: {
   participants: string[]
   onRemove: (index: number) => void
   spotlightIndex: number | null
+  winnerFoundName: string | null
 }) {
   if (participants.length === 0) {
     return (
@@ -232,27 +234,36 @@ function ParticipantList({
     <div className="flex flex-col gap-2">
       {participants.map((name, i) => {
         const isSpot = spotlightIndex === i
+        const isWinner = winnerFoundName === name
         return (
         <div
           key={`${name}-${i}`}
           data-row={i}
+          data-name={name}
           className={`group relative p-3 rounded-xl transition-all duration-150 ${
-            isSpot
-              ? 'bg-cyan-500/15 border border-cyan-400/80 shadow-[0_0_20px_rgba(0,240,255,0.35)] scale-[1.02]'
-              : 'bg-white/5 border border-white/10 hover:border-purple-500/40 hover:bg-white/[0.07]'
+            isWinner
+              ? 'bg-amber-500/15 border border-amber-400/80 shadow-[0_0_24px_rgba(251,191,36,0.45)] scale-[1.03] animate-pulse'
+              : isSpot
+                ? 'bg-cyan-500/15 border border-cyan-400/80 shadow-[0_0_20px_rgba(0,240,255,0.35)] scale-[1.02]'
+                : 'bg-white/5 border border-white/10 hover:border-purple-500/40 hover:bg-white/[0.07]'
           }`}
         >
           <div className="flex items-center gap-2.5">
             <span
               className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                isSpot
-                  ? 'bg-cyan-400 text-black shadow-[0_0_10px_rgba(0,240,255,0.8)]'
-                  : 'bg-gradient-to-br from-purple-500/60 to-purple-400/40 text-white'
+                isWinner
+                  ? 'bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.9)]'
+                  : isSpot
+                    ? 'bg-cyan-400 text-black shadow-[0_0_10px_rgba(0,240,255,0.8)]'
+                    : 'bg-gradient-to-br from-purple-500/60 to-purple-400/40 text-white'
               }`}
             >
               {i + 1}
             </span>
-            <span className={`text-sm font-medium truncate flex-1 ${isSpot ? 'text-cyan-100' : 'text-white/90'}`}>{name}</span>
+            <span className={`text-sm font-medium truncate flex-1 ${isWinner ? 'text-amber-200' : isSpot ? 'text-cyan-100' : 'text-white/90'}`}>{name}</span>
+            {isWinner && (
+              <span className="font-hud text-[10px] text-amber-300 animate-pulse whitespace-nowrap">🏆 ကံထူးပြီ!</span>
+            )}
             {isSpot && (
               <span className="font-hud text-[10px] neon-magenta animate-pulse whitespace-nowrap">◉ သူလား?</span>
             )}
@@ -326,8 +337,9 @@ function CasinoSlot({
 }) {
   const ROW_H = 48
 
-  // Build the reel: every name appears 10 rounds (shuffled each round) + winner + spacer
-  const { reel, winner } = useMemo(() => {
+  // Build the reel: every name appears 10 rounds (shuffled each round) + winner + extra
+  // names AFTER the winner so the reel can scroll PAST him without giving the result away
+  const { reel, winner, winIndex } = useMemo(() => {
     const maxItems = 8000
     const rounds = Math.max(3, Math.min(20, Math.floor((maxItems - 2) / Math.max(1, participants.length))))
     // Fisher-Yates fair shuffle each round - names spin in random order
@@ -345,8 +357,11 @@ function CasinoSlot({
       names.push(...shuffle(participants))
     }
     const win = participants[Math.floor(Math.random() * participants.length)]
-    names.push(win, '')
-    return { reel: names, winner: win }
+    const winIndex = names.length
+    names.push(win)
+    const extras = Array.from({ length: 3 }, () => shuffle(participants)).flat().slice(0, 6)
+    names.push(...extras)
+    return { reel: names, winner: win, winIndex }
   }, [participants])
 
   const [offset, setOffset] = useState(0)
@@ -358,7 +373,7 @@ function CasinoSlot({
     // Randomized suspense spin (~25-40s): every draw feels different
     // Main fast spin → [slow "him? me?" steps → hold → sudden re-spin] × 2-4 (random)
     // → final slow steps → winner reveal
-    const w = reel.length - 2 // winner index
+    const w = winIndex
     let cancelled = false
     let tickTimeout: number | null = null
     const timers: number[] = []
@@ -445,7 +460,7 @@ function CasinoSlot({
 
       // Slow steps - "is it him?"
       for (let i = 0; i < steps; i++) {
-        const m = Math.min(w - 9, cursor + i)
+        const m = Math.min(endZone, cursor + i)
         const pause = basePause + i * rand(35, 70)
         schedule(() => {
           stopTicks()
@@ -486,10 +501,12 @@ function CasinoSlot({
     // --- Final slow steps to the winner (random count, growing pauses) ---
     const finalSteps = randInt(7, 11)
     const finalStart = Math.max(1, Math.min(w - finalSteps + 1, lastRespinTo + 1))
+    let landTime = t
     for (let m = finalStart; m <= w; m++) {
       const i = m - finalStart + 1
       const pause = 340 + i * rand(90, 130) + rand(0, 160)
       const trans = rand(200, 260) + (m === w ? 80 : 0)
+      landTime = t
       schedule(() => {
         setEase(stepEase)
         setTransitionMs(trans)
@@ -499,11 +516,25 @@ function CasinoSlot({
       t += pause
     }
 
+    // --- Scroll PAST the winner: never sit on his name ---
+    const pastMs = rand(600, 900)
+    const pastTo = Math.min(reel.length - 1, w + randInt(2, 4))
+    schedule(() => {
+      startTicks(pastMs)
+      setEase(spinEase)
+      setTransitionMs(pastMs)
+      setOffset(-(pastTo - 1) * ROW_H)
+    }, landTime + 400)
+    schedule(() => {
+      stopTicks()
+    }, landTime + 400 + pastMs)
+    t = landTime + 400 + pastMs + 200
+
     // --- Winner lands: laser rings flash on the slot ---
     schedule(() => {
       setFinished(true)
       if (soundEnabled) playHeartbeat()
-    }, t + 420)
+    }, t)
 
     // --- Final reveal: modal pops up ---
     schedule(() => {
@@ -806,6 +837,7 @@ function HomeContent() {
   const listScrollRef = useRef<HTMLDivElement>(null)
   const [spotlightIndex, setSpotlightIndex] = useState<number | null>(null)
   const spotlightRef = useRef<number | null>(null)
+  const [winnerFoundName, setWinnerFoundName] = useState<string | null>(null)
 
   const isInitialMount = useRef(true)
 
@@ -839,7 +871,6 @@ function HomeContent() {
     const el = listScrollRef.current
     if (!el) return
     if (!isDrawing) {
-      el.scrollTo({ top: 0, behavior: 'smooth' })
       spotlightRef.current = null
       setSpotlightIndex(null)
       return
@@ -929,6 +960,7 @@ function HomeContent() {
   const handleWinnerSelected = useCallback((finalWinner: string) => {
     setIsDrawing(false)
     setWinner(finalWinner)
+    setWinnerFoundName(finalWinner)
 
     if (soundEnabled) playWin()
 
@@ -951,10 +983,28 @@ function HomeContent() {
     }
 
     setWinners(prev => [newWinner, ...prev])
-    // Remove the winner from participants so they can't win again
-    setParticipants(prev => prev.filter(p => p !== finalWinner))
-    setShowWinnerAlert(true)
-    toast.success(`🎉 "${finalWinner}" ကံထူးသွားပါပြီ!`)
+
+    // Re-find the winner in the participants list above and highlight them
+    requestAnimationFrame(() => {
+      const el = listScrollRef.current
+      if (!el) return
+      const rows = Array.from(el.querySelectorAll('[data-row]'))
+      const target = rows.find(r => r.getAttribute('data-name') === finalWinner)
+      if (target) {
+        target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      }
+    })
+
+    // Show the winner clearly, then remove them from the list
+    window.setTimeout(() => {
+      setShowWinnerAlert(true)
+      toast.success(`🎉 "${finalWinner}" ကံထူးသွားပါပြီ!`)
+    }, 1200)
+
+    window.setTimeout(() => {
+      setParticipants(prev => prev.filter(p => p !== finalWinner))
+      setWinnerFoundName(null)
+    }, 1900)
   }, [soundEnabled, playWin, toast])
 
 
@@ -966,9 +1016,7 @@ function HomeContent() {
   }, [toast])
 
   return (
-    <div className="min-h-screen bg-background text-white relative cyber-grid">
-      {/* CRT scanline overlay */}
-      <div className="scanlines fixed inset-0 pointer-events-none z-[80]" />
+    <div className="min-h-screen bg-background text-white relative">
 
 
       {/* Content */}
@@ -1117,6 +1165,7 @@ function HomeContent() {
                 participants={participants}
                 onRemove={removeParticipant}
                 spotlightIndex={spotlightIndex}
+                winnerFoundName={winnerFoundName}
               />
               <div ref={listEndRef} />
             </div>
