@@ -218,3 +218,31 @@ body {
   color: #a9ffb8;
   text-shadow: 0 0 6px rgba(57, 255, 20, 0.8), 0 0 16px rgba(57, 255, 20, 0.4);
 }
+
+/* Winner laser rings */
+@keyframes laser-ring {
+  0% {
+    width: 30px;
+    height: 30px;
+    opacity: 1;
+    border-color: rgba(0, 240, 255, 0.95);
+    box-shadow: 0 0 18px rgba(0, 240, 255, 0.7);
+  }
+  70% {
+    border-color: rgba(255, 43, 214, 0.8);
+  }
+  100% {
+    width: 220px;
+    height: 220px;
+    opacity: 0;
+    border-color: rgba(255, 43, 214, 0.15);
+    box-shadow: none;
+  }
+}
+
+.laser-ring {
+  position: absolute;
+  border: 2px solid rgba(0, 240, 255, 0.95);
+  border-radius: 9999px;
+  animation: laser-ring 0.9s ease-out forwards;
+}

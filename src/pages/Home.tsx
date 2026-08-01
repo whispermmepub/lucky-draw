@@ -107,7 +107,37 @@ function useSoundEffect() {
     }
   }, [])
 
-  return { playTick, playStep, playWin }
+  const playHeartbeat = useCallback(() => {
+    // "lub-dub" heartbeat: two low thumps, twice
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext()
+      }
+      const ctx = audioCtxRef.current
+      const t0 = ctx.currentTime
+      const thump = (at: number, power: number) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.frequency.setValueAtTime(75, at)
+        osc.frequency.exponentialRampToValueAtTime(38, at + 0.13)
+        osc.type = 'sine'
+        gain.gain.setValueAtTime(0.5 * power, at)
+        gain.gain.exponentialRampToValueAtTime(0.001, at + 0.18)
+        osc.start(at)
+        osc.stop(at + 0.2)
+      }
+      thump(t0, 0.55) // lub
+      thump(t0 + 0.17, 0.35) // dub
+      thump(t0 + 0.6, 0.55) // lub
+      thump(t0 + 0.77, 0.35) // dub
+    } catch {
+      // audio not available
+    }
+  }, [])
+
+  return { playTick, playStep, playWin, playHeartbeat }
 }
 
 function ConfettiOverlay() {
@@ -182,9 +212,11 @@ function ParticipantInput({
 function ParticipantList({
   participants,
   onRemove,
+  spotlightIndex,
 }: {
   participants: string[]
   onRemove: (index: number) => void
+  spotlightIndex: number | null
 }) {
   if (participants.length === 0) {
     return (
@@ -198,16 +230,32 @@ function ParticipantList({
 
   return (
     <div className="flex flex-col gap-2">
-      {participants.map((name, i) => (
+      {participants.map((name, i) => {
+        const isSpot = spotlightIndex === i
+        return (
         <div
           key={`${name}-${i}`}
-          className="group relative p-3 bg-white/5 border border-white/10 rounded-xl hover:border-purple-500/40 hover:bg-white/[0.07] transition-all"
+          data-row={i}
+          className={`group relative p-3 rounded-xl transition-all duration-150 ${
+            isSpot
+              ? 'bg-cyan-500/15 border border-cyan-400/80 shadow-[0_0_20px_rgba(0,240,255,0.35)] scale-[1.02]'
+              : 'bg-white/5 border border-white/10 hover:border-purple-500/40 hover:bg-white/[0.07]'
+          }`}
         >
           <div className="flex items-center gap-2.5">
-            <span className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-purple-500/60 to-purple-400/40 flex items-center justify-center text-xs font-bold text-white">
+            <span
+              className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                isSpot
+                  ? 'bg-cyan-400 text-black shadow-[0_0_10px_rgba(0,240,255,0.8)]'
+                  : 'bg-gradient-to-br from-purple-500/60 to-purple-400/40 text-white'
+              }`}
+            >
               {i + 1}
             </span>
-            <span className="text-sm font-medium truncate flex-1 text-white/90">{name}</span>
+            <span className={`text-sm font-medium truncate flex-1 ${isSpot ? 'text-cyan-100' : 'text-white/90'}`}>{name}</span>
+            {isSpot && (
+              <span className="font-hud text-[10px] neon-magenta animate-pulse whitespace-nowrap">◉ သူလား?</span>
+            )}
             <button
               onClick={() => onRemove(i)}
               className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded-lg transition-all text-white/50 hover:text-red-400"
@@ -218,7 +266,7 @@ function ParticipantList({
             </button>
           </div>
         </div>
-      ))}
+      );})}
     </div>
   )
 }
@@ -266,12 +314,14 @@ function CasinoSlot({
   soundEnabled,
   playTick,
   playStep,
+  playHeartbeat,
   onFinished,
 }: {
   participants: string[]
   soundEnabled: boolean
   playTick: (freq?: number, power?: number) => void
   playStep: () => void
+  playHeartbeat: () => void
   onFinished: (winner: string) => void
 }) {
   const ROW_H = 48
@@ -407,10 +457,13 @@ function CasinoSlot({
         t += pause
       }
 
-      // Hold - everything goes quiet, feels like it might stop...
+      // Hold - heartbeat, feels like it might stop...
       schedule(() => {
-        if (soundEnabled) playTick(200)
+        if (soundEnabled) playHeartbeat()
       }, t)
+      schedule(() => {
+        if (soundEnabled && holdMs >= 600) playHeartbeat()
+      }, t + 420)
       t += holdMs
 
       // ...then sudden fast re-spin!
@@ -446,9 +499,14 @@ function CasinoSlot({
       t += pause
     }
 
-    // --- Final reveal ---
+    // --- Winner lands: laser rings flash on the slot ---
     schedule(() => {
       setFinished(true)
+      if (soundEnabled) playHeartbeat()
+    }, t + 420)
+
+    // --- Final reveal: modal pops up ---
+    schedule(() => {
       onFinished(winner)
     }, t + rand(900, 1600))
 
@@ -493,6 +551,14 @@ function CasinoSlot({
               : 'border-y-2 border-amber-500/60'
           }`}
         />
+
+        {/* Winner laser rings */}
+        {finished && (
+          <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
+            <span className="laser-ring" />
+            <span className="laser-ring" style={{ animationDelay: '0.28s' }} />
+          </div>
+        )}
 
         {/* Reel strip */}
         <div
@@ -709,7 +775,7 @@ function WinnerHistory({
 
 function HomeContent() {
   const toast = useToast()
-  const { playTick, playStep, playWin } = useSoundEffect()
+  const { playTick, playStep, playWin, playHeartbeat } = useSoundEffect()
 
   const [participants, setParticipants] = useState<string[]>(() => {
     try {
@@ -738,6 +804,8 @@ function HomeContent() {
 
   const listEndRef = useRef<HTMLDivElement>(null)
   const listScrollRef = useRef<HTMLDivElement>(null)
+  const [spotlightIndex, setSpotlightIndex] = useState<number | null>(null)
+  const spotlightRef = useRef<number | null>(null)
 
   const isInitialMount = useRef(true)
 
@@ -772,6 +840,8 @@ function HomeContent() {
     if (!el) return
     if (!isDrawing) {
       el.scrollTo({ top: 0, behavior: 'smooth' })
+      spotlightRef.current = null
+      setSpotlightIndex(null)
       return
     }
     let raf = 0
@@ -799,6 +869,17 @@ function HomeContent() {
           el.scrollTop = rewindFrom * (1 - eased)
           if (p >= 1) mode = 'down'
         }
+      }
+      // Spotlight: highlight the name crossing the center line
+      const rect = el.getBoundingClientRect()
+      const cx = rect.left + rect.width / 2
+      const cy = rect.top + rect.height / 2
+      const hit = document.elementFromPoint(cx, cy)
+      const rowEl = hit ? hit.closest('[data-row]') : null
+      const idx = rowEl ? Number(rowEl.getAttribute('data-row')) : null
+      if (idx !== null && idx !== spotlightRef.current) {
+        spotlightRef.current = idx
+        setSpotlightIndex(idx)
       }
       raf = requestAnimationFrame(tick)
     }
@@ -1028,8 +1109,15 @@ function HomeContent() {
                 {participants.length.toLocaleString()} / {MAX_PARTICIPANTS.toLocaleString()}
               </span>
             </div>
-            <div ref={listScrollRef} className="max-h-[420px] overflow-y-auto pr-1 -mr-1">
-              <ParticipantList participants={participants} onRemove={removeParticipant} />
+            <div ref={listScrollRef} className="relative max-h-[420px] overflow-y-auto pr-1 -mr-1">
+              {isDrawing && (
+                <div className="sticky top-1/2 z-10 pointer-events-none -translate-y-1/2 h-[2px] bg-cyan-400/70 shadow-[0_0_14px_rgba(0,240,255,0.9)]" />
+              )}
+              <ParticipantList
+                participants={participants}
+                onRemove={removeParticipant}
+                spotlightIndex={spotlightIndex}
+              />
               <div ref={listEndRef} />
             </div>
           </div>
@@ -1042,6 +1130,7 @@ function HomeContent() {
                 soundEnabled={soundEnabled}
                 playTick={playTick}
                 playStep={playStep}
+                playHeartbeat={playHeartbeat}
                 onFinished={handleWinnerSelected}
               />
             </div>
