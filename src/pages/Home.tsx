@@ -163,14 +163,14 @@ function ParticipantInput({
           onChange={e => onChange(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="နာမည် ထည့်ပါ... (ကော်မာ , ခြားပြီး အများကြီး ထည့်နိုင်)"
-          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/40 transition-all text-base"
+          className="w-full px-4 py-3 bg-black/40 border border-cyan-400/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 transition-all text-base"
           disabled={participantCount >= maxParticipants}
         />
       </div>
       <button
         onClick={onAdd}
         disabled={!value.trim() || participantCount >= maxParticipants}
-        className="px-6 py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all active:scale-95 flex items-center gap-2 text-sm"
+        className="font-hud px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all active:scale-95 flex items-center gap-2 text-sm shadow-[0_0_14px_rgba(0,240,255,0.25)]"
       >
         <span>+</span>
         <span className="hidden xs:inline">ထည့်မယ်</span>
@@ -241,9 +241,9 @@ function DrawButton({
         transition-all duration-300 active:scale-95
         ${isDrawing
           ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white animate-pulse-glow'
-          : 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg'
+          : 'bg-black/60 text-cyan-100 border-2 border-cyan-400/70 hover:border-fuchsia-400/80 hover:text-fuchsia-200 shadow-[0_0_18px_rgba(0,240,255,0.3)] hover:shadow-[0_0_30px_rgba(255,43,214,0.45)]'
         }
-        disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none
+        disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none
       `}
     >
       {isDrawing ? (
@@ -305,8 +305,9 @@ function CasinoSlot({
   const [finished, setFinished] = useState(false)
 
   useEffect(() => {
-    // Triple suspense spin (~30s):
-    // Main fast spin → [steps "him? me?" → sudden re-spin] × 3 → final steps → reveal
+    // Randomized suspense spin (~25-40s): every draw feels different
+    // Main fast spin → [slow "him? me?" steps → hold → sudden re-spin] × 2-4 (random)
+    // → final slow steps → winner reveal
     const w = reel.length - 2 // winner index
     let cancelled = false
     let tickTimeout: number | null = null
@@ -340,79 +341,116 @@ function CasinoSlot({
     }
     const stepEase = 'cubic-bezier(0.2, 0.7, 0.3, 1)'
     const spinEase = 'cubic-bezier(0.55, 0, 0.95, 0.35)'
+    const rand = (min: number, max: number) => min + Math.random() * (max - min)
+    const randInt = (min: number, max: number) => Math.floor(rand(min, max + 1))
 
-    // --- Phase 1: main fast spin ---
-    const p1 = Math.max(1, w - 50)
+    // --- Phase 1: main fast spin (random length) ---
+    const spinMs = rand(3800, 5200)
+    const p1 = Math.max(1, w - randInt(45, 60))
     let t = 150
-    startTicks(4500)
+    startTicks(spinMs)
     schedule(() => {
       setEase(spinEase)
-      setTransitionMs(4500)
+      setTransitionMs(spinMs)
       setOffset(-(p1 - 1) * ROW_H)
     }, t)
-    t += 4500
+    t += spinMs
     schedule(() => {
       stopTicks()
     }, t)
+    t += 220
 
-    // --- Cycles: slow steps + sudden re-spin, x3 ---
-    const cycles = [
-      { start: p1 + 1, respinTo: Math.max(1, w - 35), respinMs: 2500, pauses: [350, 420, 500, 600, 700], trans: 230 },
-      { start: Math.max(1, w - 35) + 1, respinTo: Math.max(1, w - 20), respinMs: 2500, pauses: [380, 450, 530, 630, 740], trans: 230 },
-      { start: Math.max(1, w - 20) + 1, respinTo: Math.max(1, w - 9), respinMs: 2200, pauses: [400, 480, 570, 680, 800], trans: 240 },
-    ]
+    // --- Cycles: 2-4 rounds, each randomly different ---
+    const cycleCount = randInt(2, 4)
+    const endZone = Math.max(1, w - 9) // reel lands here after the last re-spin
+    let cursor = p1 + 1
+    let lastRespinTo = cursor
+    for (let c = 0; c < cycleCount; c++) {
+      const steps = randInt(4, 7)
+      const basePause = rand(330, 430) + c * 40
+      const holdMs = rand(450, 750) // fake "is it stopping?" pause
+      const remaining = endZone - cursor
+      const minAdvance = 6
+      const maxAdvance = Math.max(minAdvance, remaining - steps - 1)
+      const advance = randInt(minAdvance, Math.max(minAdvance, maxAdvance))
+      const respinTo = Math.min(endZone, cursor + steps + advance)
+      const respinMs = rand(2000, 2800)
 
-    for (const cyc of cycles) {
+      // Sometimes a quick backward flick first - "did it go back?"
+      if (Math.random() < 0.35) {
+        const backTo = Math.max(1, cursor - 2)
+        schedule(() => {
+          setEase(stepEase)
+          setTransitionMs(130)
+          setOffset(-(backTo - 1) * ROW_H)
+        }, t)
+        t += 140
+        schedule(() => {
+          setEase(stepEase)
+          setTransitionMs(150)
+          setOffset(-(cursor - 1) * ROW_H)
+        }, t)
+        t += 160
+      }
+
       // Slow steps - "is it him?"
-      for (let i = 0; i < cyc.pauses.length; i++) {
-        const m = Math.min(w - 9, cyc.start + i)
-        const pause = cyc.pauses[i]
-        const trans = cyc.trans
+      for (let i = 0; i < steps; i++) {
+        const m = Math.min(w - 9, cursor + i)
+        const pause = basePause + i * rand(35, 70)
         schedule(() => {
           stopTicks()
           setEase(stepEase)
-          setTransitionMs(trans)
+          setTransitionMs(rand(210, 250))
           setOffset(-(m - 1) * ROW_H)
           playStep()
         }, t)
         t += pause
       }
 
-      // Sudden fast re-spin
-      t += 300 // moment of silence - "is it stopping?"
+      // Hold - everything goes quiet, feels like it might stop...
       schedule(() => {
-        startTicks(cyc.respinMs)
-        setEase(spinEase)
-        setTransitionMs(cyc.respinMs)
-        setOffset(-(cyc.respinTo - 1) * ROW_H)
+        if (soundEnabled) playTick(200)
       }, t)
-      t += cyc.respinMs
+      t += holdMs
+
+      // ...then sudden fast re-spin!
+      schedule(() => {
+        startTicks(respinMs)
+        setEase(spinEase)
+        setTransitionMs(respinMs)
+        setOffset(-(respinTo - 1) * ROW_H)
+      }, t)
+      t += respinMs
       schedule(() => {
         stopTicks()
         if (soundEnabled) playTick(200)
       }, t)
-      t += 250
+      t += 220
+      lastRespinTo = respinTo
+      cursor = respinTo + 1
     }
 
-    // --- Final steps to the winner ---
-    const finalPauses = [400, 470, 550, 650, 770, 920, 1100, 1300, 1500]
-    const finalTrans = [230, 230, 240, 240, 260, 280, 300, 320, 420]
-    for (let i = 1; i <= 9; i++) {
-      const m = w - 9 + i
+    // --- Final slow steps to the winner (random count, growing pauses) ---
+    const finalSteps = randInt(7, 11)
+    const finalStart = Math.max(1, Math.min(w - finalSteps + 1, lastRespinTo + 1))
+    for (let m = finalStart; m <= w; m++) {
+      const i = m - finalStart + 1
+      const pause = 340 + i * rand(90, 130) + rand(0, 160)
+      const trans = rand(200, 260) + (m === w ? 80 : 0)
       schedule(() => {
         setEase(stepEase)
-        setTransitionMs(finalTrans[i - 1])
+        setTransitionMs(trans)
         setOffset(-(m - 1) * ROW_H)
         playStep()
       }, t)
-      t += finalPauses[i - 1]
+      t += pause
     }
 
     // --- Final reveal ---
     schedule(() => {
       setFinished(true)
       onFinished(winner)
-    }, t + 1200)
+    }, t + rand(900, 1600))
 
     return () => {
       cancelled = true
@@ -423,10 +461,10 @@ function CasinoSlot({
   }, [])
 
   return (
-    <div className="w-full max-w-md mx-auto rounded-3xl p-4 md:p-5 bg-gradient-to-b from-amber-800/90 via-amber-950/90 to-black/90 border-4 border-amber-500/60 shadow-[0_0_50px_rgba(245,158,11,0.25)] animate-draw-reveal">
+    <div className="w-full max-w-md mx-auto rounded-3xl p-4 md:p-5 bg-gradient-to-b from-amber-800/90 via-amber-950/90 to-black/90 border-4 border-amber-500/60 shadow-[0_0_50px_rgba(245,158,11,0.25),0_0_70px_rgba(0,240,255,0.12)] animate-draw-reveal">
       {/* Header */}
       <div className="text-center mb-3">
-        <span className="text-amber-300 font-bold tracking-[0.3em] text-xs md:text-sm">✦ LUCKY DRAW ✦</span>
+        <span className="font-hud text-cyan-200 tracking-[0.3em] text-xs md:text-sm">[ ✦ LUCKY DRAW ✦ ]</span>
       </div>
 
       {/* Window */}
@@ -476,8 +514,8 @@ function CasinoSlot({
       </div>
 
       {/* Footer */}
-      <div className={`text-center mt-3 text-xs tracking-widest ${finished ? 'text-amber-300 font-bold' : 'text-amber-200/70 animate-pulse'}`}>
-        {finished ? '🏆 WINNER! 🏆' : 'SPINNING...'}
+      <div className={`font-hud text-center mt-3 text-xs tracking-[0.3em] ${finished ? 'neon-cyan' : 'text-cyan-300/80 animate-pulse'}`}>
+        {finished ? '[ WINNER FOUND ]' : '[ SPINNING... ]'}
       </div>
     </div>
   )
@@ -524,6 +562,9 @@ function WinnerAlert({ winner, onClose }: { winner: string; onClose: () => void 
 
         {/* Trophy */}
         <div className="relative text-7xl mb-5 animate-bounce drop-shadow-[0_0_25px_rgba(251,191,36,0.5)]">🏆</div>
+
+        {/* HUD line */}
+        <p className="relative font-hud text-[10px] text-cyan-300/70 tracking-[0.3em] mb-2 cyber-flicker">[ WINNER DECODED ]</p>
 
         {/* Label */}
         <p className="relative text-sm text-amber-200/80 mb-2 tracking-wide">🎉 ကံထူးသွားပါပြီ 🎉</p>
@@ -589,7 +630,7 @@ function WinnerHistory({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
       <div className="bg-gray-900/95 border border-white/10 rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl shadow-purple-500/5">
         <div className="flex items-center justify-between p-5 border-b border-white/10">
-          <h2 className="display-font text-2xl text-purple-400">📋 ကံထူးရှင်စာရင်း</h2>
+          <h2 className="display-font text-2xl neon-cyan">📋 ကံထူးရှင်စာရင်း</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/50 hover:text-white"
@@ -844,13 +885,25 @@ function HomeContent() {
   }, [toast])
 
   return (
-    <div className="min-h-screen bg-background text-white relative">
+    <div className="min-h-screen bg-background text-white relative cyber-grid">
+      {/* CRT scanline overlay */}
+      <div className="scanlines fixed inset-0 pointer-events-none z-[80]" />
 
 
       {/* Content */}
       <div className="relative z-10">
         {/* Header */}
-        <header className="border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-30">
+        <header className="border-b border-cyan-400/20 bg-black/60 backdrop-blur-md sticky top-0 z-30">
+          <div className="font-hud text-[10px] xs:text-xs text-cyan-300/80 border-b border-cyan-400/15 bg-black/40 px-4 py-1.5 flex items-center justify-between gap-3 overflow-hidden">
+            <span className="flex items-center gap-2 whitespace-nowrap">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.9)]" />
+              SYS.LUCKY_DRAW // ONLINE
+            </span>
+            <span className="hidden xs:inline tracking-widest text-cyan-400/60">v2.0_CYBER</span>
+            <span className={`hidden md:inline tracking-widest ${isDrawing ? 'neon-magenta cyber-flicker' : 'text-cyan-400/50'}`}>
+              {isDrawing ? 'DECRYPTING_WINNER...' : 'STANDBY_MODE'}
+            </span>
+          </div>
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -862,8 +915,8 @@ function HomeContent() {
                   />
                 </div>
                 <div>
-                  <h1 className="display-font text-xl md:text-2xl text-white">WoW - Lucky Draw</h1>
-                  <p className="text-xs text-white/50 hidden xs:block">Random Winner Picker</p>
+                  <h1 className="display-font text-xl md:text-2xl neon-cyan glitch-title">WoW - Lucky Draw</h1>
+                  <p className="font-hud text-xs neon-green hidden xs:block">// RANDOM WINNER PICKER</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -876,7 +929,7 @@ function HomeContent() {
                 </button>
                 <button
                   onClick={() => setShowHistory(true)}
-                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-medium transition-all flex items-center gap-2"
+                  className="font-hud px-4 py-2 bg-black/40 hover:bg-white/10 text-cyan-200 border border-cyan-400/30 hover:border-fuchsia-400/50 rounded-xl text-sm transition-all flex items-center gap-2"
                 >
                   <span>📋</span>
                   <span className="hidden xs:inline">ကံထူးရှင်များ</span>
@@ -918,11 +971,23 @@ function HomeContent() {
                   <div className="text-xl md:text-2xl text-emblem-2 mt-6 md:mt-8">သက်ပိုင်(ဘာသာပြန်)</div>
                 </div>
               </div>
+
+              {/* HUD overlays */}
+              <div className="absolute inset-x-0 top-2 z-20 flex items-center justify-between px-4 font-hud text-[10px] md:text-xs text-cyan-300/70 pointer-events-none">
+                <span>◤ TARGET.LIST</span>
+                <span className={`cyber-flicker ${isDrawing ? 'neon-magenta' : 'neon-green'}`}>{isDrawing ? '◉ SPINNING' : '● LIVE'}</span>
+                <span>MODE: RANDOM</span>
+              </div>
+              <div className="absolute inset-x-0 bottom-2 z-20 flex items-center justify-between px-4 font-hud text-[10px] md:text-xs text-cyan-300/70 pointer-events-none">
+                <span>N.ENTRIES: {participants.length}</span>
+                <span>STATUS: {isDrawing ? 'SELECTING' : 'READY'}</span>
+                <span>◢</span>
+              </div>
             </div>
           </div>
 
           {/* Input Section */}
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5 xs:p-6 mb-6">
+          <div className="bg-black/40 backdrop-blur-sm border border-cyan-400/15 rounded-2xl p-5 xs:p-6 mb-6 shadow-[0_0_20px_rgba(0,240,255,0.05)]">
             <ParticipantInput
               value={inputValue}
               onChange={setInputValue}
@@ -951,10 +1016,10 @@ function HomeContent() {
 
           {/* Participants List */}
           <div
-            className={`bg-white/5 backdrop-blur-sm border rounded-2xl p-5 xs:p-6 transition-all duration-300 ${
+            className={`bg-black/40 backdrop-blur-sm border rounded-2xl p-5 xs:p-6 transition-all duration-300 ${
               isDrawing
                 ? 'border-purple-500/40 shadow-[0_0_30px_rgba(168,85,247,0.15)]'
-                : 'border-white/10'
+                : 'border-cyan-400/15'
             }`}
           >
             <div className="flex items-center justify-between mb-4">
@@ -995,6 +1060,9 @@ function HomeContent() {
 
           {/* Draw Section - below winner display */}
           <div className="mt-6">
+            <div className="font-hud text-[10px] text-cyan-400/60 text-center mb-2 tracking-[0.25em]">
+              ▸ {participants.length.toLocaleString()} ENTRIES QUEUED — CLICK TO INITIATE
+            </div>
             <DrawButton onClick={startDraw} disabled={participants.length === 0 || isDrawing} isDrawing={isDrawing} />
           </div>
         </main>

@@ -141,3 +141,80 @@ body {
   border-radius: 2px;
   animation: confetti-fall 2s ease-out forwards;
 }
+
+/* ===== Cyberpunk HUD styles ===== */
+.font-hud {
+  font-family: 'Share Tech Mono', ui-monospace, monospace;
+}
+
+.cyber-grid {
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.045) 1px, transparent 1px);
+  background-size: 42px 42px;
+}
+
+.scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.16) 0px,
+    rgba(0, 0, 0, 0.16) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+@keyframes cyber-flicker {
+  0%, 91%, 100% { opacity: 1; }
+  92% { opacity: 0.55; }
+  93% { opacity: 1; }
+  96% { opacity: 0.7; }
+  97% { opacity: 1; }
+}
+
+.cyber-flicker {
+  animation: cyber-flicker 4s linear infinite;
+}
+
+/* Glitching title */
+@keyframes glitch-shift {
+  0%, 100% {
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.85), 0 0 26px rgba(0, 240, 255, 0.45);
+    transform: translate(0, 0);
+  }
+  20% {
+    text-shadow: -2px 0 #ff2bd6, 2px 0 #00f0ff, 0 0 10px rgba(0, 240, 255, 0.85);
+    transform: translate(1px, -1px);
+  }
+  40% {
+    text-shadow: 2px 0 #ff2bd6, -2px 0 #00f0ff, 0 0 10px rgba(0, 240, 255, 0.85);
+    transform: translate(-1px, 1px);
+  }
+  60% {
+    text-shadow: -1px 0 #ff2bd6, 1px 0 #00f0ff, 0 0 10px rgba(0, 240, 255, 0.85);
+    transform: translate(1px, 0);
+  }
+  80% {
+    text-shadow: 1px 0 #ff2bd6, -1px 0 #00f0ff, 0 0 10px rgba(0, 240, 255, 0.85);
+    transform: translate(-1px, 1px);
+  }
+}
+
+.glitch-title {
+  animation: glitch-shift 3.5s steps(1) infinite;
+}
+
+.neon-cyan {
+  color: #9ff7ff;
+  text-shadow: 0 0 6px rgba(0, 240, 255, 0.9), 0 0 18px rgba(0, 240, 255, 0.5);
+}
+
+.neon-magenta {
+  color: #ffb3f2;
+  text-shadow: 0 0 6px rgba(255, 43, 214, 0.9), 0 0 18px rgba(255, 43, 214, 0.5);
+}
+
+.neon-green {
+  color: #a9ffb8;
+  text-shadow: 0 0 6px rgba(57, 255, 20, 0.8), 0 0 16px rgba(57, 255, 20, 0.4);
+}
