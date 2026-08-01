@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import { ToastProvider, useToast } from '../components/Toast.tsx'
 
 interface Winner {
@@ -209,6 +209,63 @@ function ParticipantInput({
   )
 }
 
+const ParticipantRow = memo(function ParticipantRow({
+  name,
+  index,
+  isSpotlight,
+  isWinner,
+  onRemove,
+}: {
+  name: string
+  index: number
+  isSpotlight: boolean
+  isWinner: boolean
+  onRemove: (index: number) => void
+}) {
+  return (
+    <div
+      data-row={index}
+      data-name={name}
+      className={`group relative p-3 rounded-xl transition-all duration-150 ${
+        isWinner
+          ? 'bg-amber-500/15 border border-amber-400/80 shadow-[0_0_24px_rgba(251,191,36,0.45)] scale-[1.03] animate-pulse'
+          : isSpotlight
+            ? 'bg-cyan-500/15 border border-cyan-400/80 shadow-[0_0_20px_rgba(0,240,255,0.35)] scale-[1.02]'
+            : 'bg-white/5 border border-white/10 hover:border-purple-500/40 hover:bg-white/[0.07]'
+      }`}
+    >
+      <div className="flex items-center gap-2.5">
+        <span
+          className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+            isWinner
+              ? 'bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.9)]'
+              : isSpotlight
+                ? 'bg-cyan-400 text-black shadow-[0_0_10px_rgba(0,240,255,0.8)]'
+                : 'bg-gradient-to-br from-purple-500/60 to-purple-400/40 text-white'
+          }`}
+        >
+          {index + 1}
+        </span>
+        <span className={`text-sm font-medium truncate flex-1 ${isWinner ? 'text-amber-200' : isSpotlight ? 'text-cyan-100' : 'text-white/90'}`}>{name}</span>
+        {isWinner && (
+          <span className="font-hud text-[10px] text-amber-300 animate-pulse whitespace-nowrap">🏆 ကံထူးပြီ!</span>
+        )}
+        {isSpotlight && (
+          <span className="font-hud text-[10px] neon-magenta animate-pulse whitespace-nowrap">◉ သူလား?</span>
+        )}
+        <button
+          onClick={() => onRemove(index)}
+          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded-lg transition-all text-white/50 hover:text-red-400"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+})
+
 function ParticipantList({
   participants,
   onRemove,
@@ -232,52 +289,16 @@ function ParticipantList({
 
   return (
     <div className="flex flex-col gap-2">
-      {participants.map((name, i) => {
-        const isSpot = spotlightIndex === i
-        const isWinner = winnerFoundName === name
-        return (
-        <div
+      {participants.map((name, i) => (
+        <ParticipantRow
           key={`${name}-${i}`}
-          data-row={i}
-          data-name={name}
-          className={`group relative p-3 rounded-xl transition-all duration-150 ${
-            isWinner
-              ? 'bg-amber-500/15 border border-amber-400/80 shadow-[0_0_24px_rgba(251,191,36,0.45)] scale-[1.03] animate-pulse'
-              : isSpot
-                ? 'bg-cyan-500/15 border border-cyan-400/80 shadow-[0_0_20px_rgba(0,240,255,0.35)] scale-[1.02]'
-                : 'bg-white/5 border border-white/10 hover:border-purple-500/40 hover:bg-white/[0.07]'
-          }`}
-        >
-          <div className="flex items-center gap-2.5">
-            <span
-              className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                isWinner
-                  ? 'bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.9)]'
-                  : isSpot
-                    ? 'bg-cyan-400 text-black shadow-[0_0_10px_rgba(0,240,255,0.8)]'
-                    : 'bg-gradient-to-br from-purple-500/60 to-purple-400/40 text-white'
-              }`}
-            >
-              {i + 1}
-            </span>
-            <span className={`text-sm font-medium truncate flex-1 ${isWinner ? 'text-amber-200' : isSpot ? 'text-cyan-100' : 'text-white/90'}`}>{name}</span>
-            {isWinner && (
-              <span className="font-hud text-[10px] text-amber-300 animate-pulse whitespace-nowrap">🏆 ကံထူးပြီ!</span>
-            )}
-            {isSpot && (
-              <span className="font-hud text-[10px] neon-magenta animate-pulse whitespace-nowrap">◉ သူလား?</span>
-            )}
-            <button
-              onClick={() => onRemove(i)}
-              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded-lg transition-all text-white/50 hover:text-red-400"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      );})}
+          name={name}
+          index={i}
+          isSpotlight={spotlightIndex === i}
+          isWinner={winnerFoundName === name}
+          onRemove={onRemove}
+        />
+      ))}
     </div>
   )
 }
@@ -866,7 +887,9 @@ function HomeContent() {
     localStorage.setItem(SOUND_ENABLED_KEY, String(soundEnabled))
   }, [soundEnabled])
 
-  // Auto-scroll the participants list while the draw is spinning
+  // Auto-scroll the participants list while the draw is spinning.
+  // Time-based sine motion: velocity never jumps to zero, so it never "sticks",
+  // and dropped frames can't make it stutter (position depends only on time).
   useEffect(() => {
     const el = listScrollRef.current
     if (!el) return
@@ -876,39 +899,26 @@ function HomeContent() {
       return
     }
     let raf = 0
-    let last = performance.now()
-    let mode: 'down' | 'rewind' = 'down'
-    let rewindStart = 0
-    let rewindFrom = 0
-    const SCROLL_SPEED = 85 // px per second
-    const REWIND_MS = 900
+    const max = el.scrollHeight - el.clientHeight
+    // Measure the actual row pitch once (layout is stable during the draw)
+    let pitch = 52
+    const firstRows = el.querySelectorAll('[data-row]')
+    if (firstRows.length >= 2) {
+      const p = (firstRows[1] as HTMLElement).offsetTop - (firstRows[0] as HTMLElement).offsetTop
+      if (p > 0) pitch = p
+    }
+    // Full down+up cycle: ~220 px/s peak speed, min 6s (light & lively)
+    const PEAK_SPEED = 220
+    const period = max > 0 ? Math.max(6000, (max / PEAK_SPEED) * Math.PI * 1000) : 6000
+    const start = performance.now()
     const tick = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000)
-      last = now
-      const max = el.scrollHeight - el.clientHeight
-      if (max > 0) {
-        if (mode === 'down') {
-          el.scrollTop = Math.min(max, el.scrollTop + SCROLL_SPEED * dt)
-          if (el.scrollTop >= max) {
-            mode = 'rewind'
-            rewindStart = now
-            rewindFrom = max
-          }
-        } else {
-          const p = Math.min(1, (now - rewindStart) / REWIND_MS)
-          const eased = 1 - Math.pow(1 - p, 3) // ease-out
-          el.scrollTop = rewindFrom * (1 - eased)
-          if (p >= 1) mode = 'down'
-        }
-      }
-      // Spotlight: highlight the name crossing the center line
-      const rect = el.getBoundingClientRect()
-      const cx = rect.left + rect.width / 2
-      const cy = rect.top + rect.height / 2
-      const hit = document.elementFromPoint(cx, cy)
-      const rowEl = hit ? hit.closest('[data-row]') : null
-      const idx = rowEl ? Number(rowEl.getAttribute('data-row')) : null
-      if (idx !== null && idx !== spotlightRef.current) {
+      const p = (1 - Math.cos((2 * Math.PI * (now - start)) / period)) / 2 // 0→1→0, smooth
+      if (max > 0) el.scrollTop = p * max
+      const idx = Math.min(
+        Math.max(0, Math.floor((el.scrollTop + el.clientHeight / 2) / pitch)),
+        firstRows.length - 1,
+      )
+      if (idx !== spotlightRef.current) {
         spotlightRef.current = idx
         setSpotlightIndex(idx)
       }
