@@ -462,15 +462,15 @@ function CasinoSlot({
     }, t)
     t += 220
 
-    // --- Cycles: 3-4 rounds, each randomly different ---
-    const cycleCount = randInt(3, 4)
+    // --- Cycles: exactly 3 slow-fast rounds ---
+    const cycleCount = 3
     const endZone = Math.max(1, w - 9) // reel lands here after the last re-spin
     let cursor = p1 + 1
     let lastRespinTo = cursor
     for (let c = 0; c < cycleCount; c++) {
       const steps = randInt(4, 7)
-      const basePause = rand(300, 380) + c * 25
-      const holdMs = rand(300, 480) // fake "is it stopping?" pause
+      const basePause = rand(170, 230) + c * 15
+      const holdMs = rand(200, 300) // fake "is it stopping?" pause
       const remaining = endZone - cursor
       const minAdvance = 6
       const maxAdvance = Math.max(minAdvance, remaining - steps - 1)
@@ -498,11 +498,11 @@ function CasinoSlot({
       // Slow steps - "is it him?"
       for (let i = 0; i < steps; i++) {
         const m = Math.min(endZone, cursor + i)
-        const pause = basePause + i * rand(25, 50)
+        const pause = basePause + i * rand(12, 28)
         schedule(() => {
           stopTicks()
           setEase(stepEase)
-          setTransitionMs(rand(210, 250))
+          setTransitionMs(rand(130, 170))
           setOffset(-(m - 1) * ROW_H)
           playStep()
         }, t)
@@ -538,8 +538,8 @@ function CasinoSlot({
     let landTime = t
     for (let m = finalStart; m <= w; m++) {
       const i = m - finalStart + 1
-      const pause = Math.min(800, 260 + i * rand(45, 70) + rand(0, 80))
-      const trans = rand(200, 260) + (m === w ? 80 : 0)
+      const pause = Math.min(520, 170 + i * rand(30, 50) + rand(0, 50))
+      const trans = rand(140, 180) + (m === w ? 60 : 0)
       landTime = t
       schedule(() => {
         setEase(stepEase)
