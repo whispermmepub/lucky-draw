@@ -463,14 +463,14 @@ function CasinoSlot({
     t += 220
 
     // --- Cycles: 2-4 rounds, each randomly different ---
-    const cycleCount = randInt(2, 4)
+    const cycleCount = randInt(3, 4)
     const endZone = Math.max(1, w - 9) // reel lands here after the last re-spin
     let cursor = p1 + 1
     let lastRespinTo = cursor
     for (let c = 0; c < cycleCount; c++) {
       const steps = randInt(4, 7)
-      const basePause = rand(330, 430) + c * 40
-      const holdMs = rand(450, 750) // fake "is it stopping?" pause
+      const basePause = rand(300, 380) + c * 25
+      const holdMs = rand(300, 480) // fake "is it stopping?" pause
       const remaining = endZone - cursor
       const minAdvance = 6
       const maxAdvance = Math.max(minAdvance, remaining - steps - 1)
@@ -498,7 +498,7 @@ function CasinoSlot({
       // Slow steps - "is it him?"
       for (let i = 0; i < steps; i++) {
         const m = Math.min(endZone, cursor + i)
-        const pause = basePause + i * rand(35, 70)
+        const pause = basePause + i * rand(25, 50)
         schedule(() => {
           stopTicks()
           setEase(stepEase)
@@ -541,7 +541,7 @@ function CasinoSlot({
     let landTime = t
     for (let m = finalStart; m <= w; m++) {
       const i = m - finalStart + 1
-      const pause = 340 + i * rand(90, 130) + rand(0, 160)
+      const pause = Math.min(800, 260 + i * rand(45, 70) + rand(0, 80))
       const trans = rand(200, 260) + (m === w ? 80 : 0)
       landTime = t
       schedule(() => {
@@ -561,7 +561,7 @@ function CasinoSlot({
       setEase(spinEase)
       setTransitionMs(pastMs)
       setOffset(-(pastTo - 1) * ROW_H)
-    }, landTime + 400)
+    }, landTime + 300)
     schedule(() => {
       stopTicks()
     }, landTime + 400 + pastMs)
@@ -576,7 +576,7 @@ function CasinoSlot({
     // --- Final reveal: modal pops up ---
     schedule(() => {
       onFinished(winner)
-    }, t + rand(900, 1600))
+    }, t + rand(500, 900))
 
     return () => {
       cancelled = true
