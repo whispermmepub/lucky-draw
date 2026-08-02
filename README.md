@@ -8,8 +8,10 @@ participant list and spin the casino slot, but **only the owner can add/remove n
 
 ## How the shared list works
 
-- The participant list lives in [`data/participants.json`](data/participants.json) in this repo.
-- All visitors **read** it from the raw CDN (`raw.githubusercontent.com` / jsDelivr) — no auth needed.
+- The participant list lives in [`data/participants.json`](data/participants.json) and the winner
+  history in [`data/winners.json`](data/winners.json) in this repo.
+- All visitors **read** them from the raw CDN (`raw.githubusercontent.com` / jsDelivr) — no auth needed.
+  The winner history is shared, so everyone sees the same winners list.
 - The **owner writes** it through the GitHub Contents API using a personal access token
   entered once in the browser. The token is stored only in the owner's browser
   (`localStorage`) and is **never committed** to the repo or bundled into the app.

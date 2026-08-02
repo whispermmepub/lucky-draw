@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import { ToastProvider, useToast } from '../components/Toast.tsx'
-import { fetchSharedParticipants, saveSharedParticipants, validateOwnerToken } from '../lib/sharedStore.ts'
+import { fetchSharedParticipants, fetchSharedWinners, saveSharedParticipants, saveSharedWinners, validateOwnerToken } from '../lib/sharedStore.ts'
 
 interface Winner {
   name: string
@@ -732,10 +732,12 @@ function WinnerAlert({ winner, onClose }: { winner: string; onClose: () => void 
 
 function WinnerHistory({
   winners,
+  live,
   onClear,
   onClose,
 }: {
   winners: Winner[]
+  live: boolean
   onClear: () => void
   onClose: () => void
 }) {
@@ -772,6 +774,11 @@ function WinnerHistory({
       <div className="bg-gray-900/95 border border-white/10 rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl shadow-purple-500/5">
         <div className="flex items-center justify-between p-5 border-b border-white/10">
           <h2 className="display-font text-2xl neon-cyan">📋 ကံထူးရှင်စာရင်း</h2>
+          {live && (
+            <span className="font-hud text-[9px] text-green-300 bg-green-500/10 border border-green-400/30 rounded-full px-2 py-0.5 tracking-[0.2em]">
+              LIVE_SHARED
+            </span>
+          )}
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/50 hover:text-white"
@@ -965,6 +972,8 @@ function HomeContent() {
   const [winner, setWinner] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [showWinnerAlert, setShowWinnerAlert] = useState(false)
+  const [sharedWinners, setSharedWinners] = useState<Winner[]>([])
+  const sharedWinnersRef = useRef<Winner[]>([])
   const [winners, setWinners] = useState<Winner[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
@@ -1019,6 +1028,10 @@ function HomeContent() {
     isDrawingRef.current = isDrawing
   }, [isDrawing])
 
+  useEffect(() => {
+    sharedWinnersRef.current = sharedWinners
+  }, [sharedWinners])
+
   // Load the SHARED participant list and keep it live-synced with all visitors.
   // Owner edits are written back immediately; polls only read (and skip during a draw).
   useEffect(() => {
@@ -1044,6 +1057,13 @@ function HomeContent() {
         }
       } finally {
         if (active) setSharedLoading(false)
+      }
+      try {
+        const shWinners = await fetchSharedWinners()
+        if (!active) return
+        setSharedWinners(shWinners)
+      } catch {
+        // keep the last known shared winners
       }
     }
     load()
@@ -1161,6 +1181,18 @@ function HomeContent() {
     })
   }, [ownerToken, toast])
 
+  const displayWinners = useMemo(() => {
+    const seen = new Set<string>()
+    const merged: Winner[] = []
+    for (const w of [...sharedWinners, ...winners]) {
+      const key = `${w.date}::${w.timestamp}::${w.name}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      merged.push(w)
+    }
+    return merged
+  }, [sharedWinners, winners])
+
   const startDraw = useCallback(() => {
     if (participants.length === 0) {
       toast.error('ပါဝင်သူ အနည်းဆုံး ၁ ယောက် လိုပါသည်')
@@ -1208,7 +1240,16 @@ function HomeContent() {
       date: dateStr,
     }
 
-    setWinners(prev => [newWinner, ...prev])
+    setWinners(prev => {
+      const next = [newWinner, ...prev]
+      if (ownerToken) {
+        const sharedNext = [newWinner, ...sharedWinnersRef.current]
+        saveSharedWinners(sharedNext, ownerToken).catch(() => {
+          toast.error('ကံထူးရှင်စာရင်း သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+        })
+      }
+      return next
+    })
 
     // Re-find the winner in the participants list above and highlight them
     requestAnimationFrame(() => {
@@ -1244,8 +1285,13 @@ function HomeContent() {
   const handleClearWinners = useCallback(() => {
     setWinners([])
     localStorage.removeItem(STORAGE_KEY)
+    if (ownerToken) {
+      saveSharedWinners([], ownerToken).catch(() => {
+        toast.error('ကံထူးရှင်စာရင်း သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+      })
+    }
     toast.success('စာရင်းဖျက်သိမ်းပြီးပါပြီ')
-  }, [toast])
+  }, [ownerToken, toast])
 
   return (
     <div className="min-h-screen bg-background text-white relative">
@@ -1306,9 +1352,9 @@ function HomeContent() {
                 >
                   <span>📋</span>
                   <span className="hidden xs:inline">ကံထူးရှင်များ</span>
-                  {winners.length > 0 && (
+                  {displayWinners.length > 0 && (
                     <span className="bg-purple-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                      {winners.length}
+                      {displayWinners.length}
                     </span>
                   )}
                 </button>
@@ -1489,7 +1535,8 @@ function HomeContent() {
         {/* Winner History Modal */}
         {showHistory && (
           <WinnerHistory
-            winners={winners}
+            winners={displayWinners}
+            live={sharedWinners.length > 0}
             onClear={handleClearWinners}
             onClose={() => setShowHistory(false)}
           />

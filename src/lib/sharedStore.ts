@@ -1,14 +1,23 @@
-// Shared participant list — stored in the GitHub repo as data/participants.json.
-// Every visitor READS it (raw CDN, no auth needed). Only the OWNER can WRITE it,
-// using a personal access token that is entered in the browser and never
+// Shared data — stored in the GitHub repo as JSON files:
+//   - data/participants.json  (the participant list)
+//   - data/winners.json       (the winner history)
+// Every visitor READS them (raw CDN, no auth needed). Only the OWNER can WRITE
+// them, using a personal access token entered in the browser and never
 // committed to the repo or bundled into the app.
 
 export const OWNER_REPO = 'whispermmepub/lucky-draw'
-const FILE_PATH = 'data/participants.json'
+const PARTICIPANTS_PATH = 'data/participants.json'
+const WINNERS_PATH = 'data/winners.json'
 
-const READ_SOURCES = [
-  `https://raw.githubusercontent.com/${OWNER_REPO}/main/${FILE_PATH}`,
-  `https://cdn.jsdelivr.net/gh/${OWNER_REPO}@main/${FILE_PATH}`,
+export interface SharedWinner {
+  name: string
+  timestamp: string
+  date: string
+}
+
+const READ_BASES = [
+  `https://raw.githubusercontent.com/${OWNER_REPO}/main`,
+  `https://cdn.jsdelivr.net/gh/${OWNER_REPO}@main`,
 ]
 
 const API_HEADERS = {
@@ -16,24 +25,38 @@ const API_HEADERS = {
   'X-GitHub-Api-Version': '2022-11-28',
 }
 
-function sanitize(data: unknown): string[] {
-  if (!Array.isArray(data)) throw new Error('bad-data')
-  return data.filter((n): n is string => typeof n === 'string' && n.trim().length > 0)
-}
-
-export async function fetchSharedParticipants(): Promise<string[]> {
+async function fetchJson(path: string): Promise<unknown> {
   const query = `?t=${Date.now()}`
   let lastErr: unknown = null
-  for (const base of READ_SOURCES) {
+  for (const base of READ_BASES) {
     try {
-      const res = await fetch(`${base}${query}`)
+      const res = await fetch(`${base}/${path}${query}`)
       if (!res.ok) throw new Error(`http-${res.status}`)
-      return sanitize(await res.json())
+      return await res.json()
     } catch (err) {
       lastErr = err
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error('load-failed')
+}
+
+export async function fetchSharedParticipants(): Promise<string[]> {
+  const data = await fetchJson(PARTICIPANTS_PATH)
+  if (!Array.isArray(data)) throw new Error('bad-data')
+  return data.filter((n): n is string => typeof n === 'string' && n.trim().length > 0)
+}
+
+export async function fetchSharedWinners(): Promise<SharedWinner[]> {
+  const data = await fetchJson(WINNERS_PATH)
+  if (!Array.isArray(data)) throw new Error('bad-data')
+  return data.filter(
+    (w): w is SharedWinner =>
+      typeof w === 'object' &&
+      w !== null &&
+      typeof (w as SharedWinner).name === 'string' &&
+      typeof (w as SharedWinner).timestamp === 'string' &&
+      typeof (w as SharedWinner).date === 'string',
+  )
 }
 
 function toBase64(str: string): string {
@@ -56,14 +79,14 @@ export async function validateOwnerToken(token: string): Promise<string> {
 }
 
 /**
- * Overwrite data/participants.json via the GitHub Contents API.
+ * Overwrite a JSON file in the repo via the GitHub Contents API.
  * Requires the owner's personal access token (never stored in the repo).
  * Retries on write conflicts (another tab saved at the same time).
  */
-export async function saveSharedParticipants(names: string[], token: string): Promise<void> {
-  const api = `https://api.github.com/repos/${OWNER_REPO}/contents/${FILE_PATH}`
+async function writeRepoFile(path: string, contentStr: string, token: string): Promise<void> {
+  const api = `https://api.github.com/repos/${OWNER_REPO}/contents/${path}`
   const authHeaders = { Authorization: `Bearer ${token}`, ...API_HEADERS }
-  const content = toBase64(`${JSON.stringify(names, null, 2)}\n`)
+  const content = toBase64(contentStr)
 
   for (let attempt = 0; attempt < 4; attempt++) {
     // 1) Read the current file so we can get its sha (GitHub requires it for updates).
@@ -82,7 +105,7 @@ export async function saveSharedParticipants(names: string[], token: string): Pr
 
     // 2) Write the new content.
     const body: Record<string, string> = {
-      message: 'Update lucky draw participants',
+      message: `Update ${path.split('/').pop()}`,
       content,
     }
     if (sha) body.sha = sha
@@ -97,4 +120,12 @@ export async function saveSharedParticipants(names: string[], token: string): Pr
     throw new Error('save-failed')
   }
   throw new Error('save-failed')
+}
+
+export function saveSharedParticipants(names: string[], token: string): Promise<void> {
+  return writeRepoFile(PARTICIPANTS_PATH, `${JSON.stringify(names, null, 2)}\n`, token)
+}
+
+export function saveSharedWinners(winners: SharedWinner[], token: string): Promise<void> {
+  return writeRepoFile(WINNERS_PATH, `${JSON.stringify(winners, null, 2)}\n`, token)
 }
