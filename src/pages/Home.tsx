@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import { ToastProvider, useToast } from '../components/Toast.tsx'
-import { fetchSharedParticipants, saveSharedParticipants } from '../lib/sharedStore.ts'
+import { fetchSharedParticipants, saveSharedParticipants, validateOwnerToken } from '../lib/sharedStore.ts'
 
 interface Winner {
   name: string
@@ -16,8 +16,8 @@ const LIST_SPACER = (LIST_HEIGHT - LIST_ROW_PITCH) / 2
 const STORAGE_KEY = 'lucky-draw-winners'
 const PARTICIPANTS_KEY = 'lucky-draw-participants'
 const SOUND_ENABLED_KEY = 'lucky-draw-sound'
-const OWNER_STORAGE_KEY = 'lucky-draw-owner'
-const OWNER_PIN = '2468'
+const OWNER_TOKEN_KEY = 'lucky-draw-owner-token'
+const OWNER_LOGIN_KEY = 'lucky-draw-owner-login'
 
 // Myanmar Unicode range: U+1000 - U+109F (only check first character)
 function isMyanmarName(name: string): boolean {
@@ -848,14 +848,32 @@ function WinnerHistory({
   )
 }
 
-function PinModal({ onClose, onUnlock }: { onClose: () => void; onUnlock: () => void }) {
+function OwnerModal({
+  login,
+  onClose,
+  onConnect,
+  onLogout,
+}: {
+  login: string | null
+  onClose: () => void
+  onConnect: (token: string) => Promise<void>
+  onLogout: () => void
+}) {
   const [value, setValue] = useState('')
-  const [error, setError] = useState(false)
-  const submit = () => {
-    if (value === OWNER_PIN) {
-      onUnlock()
-    } else {
-      setError(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const submit = async () => {
+    const token = value.trim()
+    if (!token) return
+    setBusy(true)
+    setError('')
+    try {
+      await onConnect(token)
+      setValue('')
+    } catch {
+      setError('Token မှားနေပါတယ် — GitHub က token ကို ပြန်စစ်ကြည့်ပါ')
+    } finally {
+      setBusy(false)
     }
   }
   return (
@@ -864,41 +882,74 @@ function PinModal({ onClose, onUnlock }: { onClose: () => void; onUnlock: () => 
       onClick={onClose}
     >
       <div
-        className="bg-gray-900/95 border border-cyan-400/40 rounded-2xl w-full max-w-xs p-6 text-center shadow-[0_0_30px_rgba(0,240,255,0.15)]"
+        className="bg-gray-900/95 border border-cyan-400/40 rounded-2xl w-full max-w-md p-6 text-center shadow-[0_0_30px_rgba(0,240,255,0.15)]"
         onClick={e => e.stopPropagation()}
       >
-        <div className="text-3xl mb-3">🔑</div>
-        <h3 className="font-bold mb-1">ပိုင်ရှင် ဝင်ရောက်ရန်</h3>
-        <p className="font-hud text-[10px] text-cyan-400/60 tracking-[0.25em] mb-4">ENTER OWNER PIN</p>
-        <input
-          type="password"
-          value={value}
-          onChange={e => {
-            setValue(e.target.value)
-            setError(false)
-          }}
-          onKeyDown={e => {
-            if (e.key === 'Enter') submit()
-          }}
-          placeholder="PIN"
-          autoFocus
-          className="w-full px-4 py-3 bg-black/40 border border-cyan-400/30 rounded-xl text-white text-center text-lg tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
-        />
-        {error && <p className="text-red-400 text-xs mt-2">PIN မှားနေပါတယ်</p>}
-        <div className="flex gap-2 mt-5">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-sm"
-          >
-            ပိတ်မယ်
-          </button>
-          <button
-            onClick={submit}
-            className="flex-1 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-sm font-bold"
-          >
-            ဝင်မယ်
-          </button>
-        </div>
+        {login ? (
+          <>
+            <div className="text-3xl mb-3">🔓</div>
+            <h3 className="font-bold mb-1">ပိုင်ရှင် mode ဖွင့်ထားပါတယ်</h3>
+            <p className="font-hud text-[10px] text-cyan-400/60 tracking-[0.25em] mb-4">OWNER CONNECTED</p>
+            <div className="bg-black/40 border border-green-400/30 rounded-xl px-4 py-3 text-sm text-green-300 mb-5">
+              ✓ @{login} — စာရင်း ထည့်/ဖျက် လုပ်လို့ရပါပြီ
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-sm"
+              >
+                ပိတ်မယ်
+              </button>
+              <button
+                onClick={onLogout}
+                className="flex-1 px-4 py-2.5 bg-red-600/80 hover:bg-red-500 text-white rounded-xl text-sm font-bold"
+              >
+                Logout
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="text-3xl mb-3">🔑</div>
+            <h3 className="font-bold mb-1">ပိုင်ရှင် ချိတ်ဆက်ရန်</h3>
+            <p className="font-hud text-[10px] text-cyan-400/60 tracking-[0.25em] mb-2">ENTER GITHUB TOKEN</p>
+            <p className="text-[11px] text-white/50 leading-relaxed mb-4">
+              GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) မှာ
+              <strong className="text-cyan-300"> repo </strong> scope နဲ့ token တစ်ခု ဖန်တီးပြီး ဒီမှာ ထည့်ပါ။
+              Token က ကိုယ့် browser ထဲမှာပဲ သိမ်းမှာမို့ လုံခြုံပါတယ်။
+            </p>
+            <input
+              type="password"
+              value={value}
+              onChange={e => {
+                setValue(e.target.value)
+                setError('')
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') submit()
+              }}
+              placeholder="github_pat_..."
+              autoFocus
+              className="w-full px-4 py-3 bg-black/40 border border-cyan-400/30 rounded-xl text-white text-center text-sm font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+            />
+            {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-sm"
+              >
+                ပိတ်မယ်
+              </button>
+              <button
+                onClick={submit}
+                disabled={!value.trim() || busy}
+                className="flex-1 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-sm font-bold disabled:opacity-50"
+              >
+                {busy ? 'စစ်နေသည်...' : 'ချိတ်မယ်'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
@@ -927,8 +978,10 @@ function HomeContent() {
   })
   const [sharedLoading, setSharedLoading] = useState(true)
   const [sharedError, setSharedError] = useState(false)
-  const [isOwner, setIsOwner] = useState(() => localStorage.getItem(OWNER_STORAGE_KEY) === '1')
-  const [showPinModal, setShowPinModal] = useState(false)
+  const [ownerToken, setOwnerToken] = useState<string | null>(() => localStorage.getItem(OWNER_TOKEN_KEY))
+  const [ownerLogin, setOwnerLogin] = useState<string | null>(() => localStorage.getItem(OWNER_LOGIN_KEY))
+  const [showOwnerModal, setShowOwnerModal] = useState(false)
+  const isOwner = ownerToken !== null
 
   const listEndRef = useRef<HTMLDivElement>(null)
   const listScrollRef = useRef<HTMLDivElement>(null)
@@ -1067,6 +1120,14 @@ function HomeContent() {
       .map(n => n.trim())
       .filter(Boolean)
     if (names.length === 0) return
+    if (!ownerToken) {
+      toast.error('ပိုင်ရှင် token မရှိပါ — 🔒 ခလုတ်နဲ့ ချိတ်ပါ')
+      return
+    }
+    if (names.some(n => n.toLowerCase().includes('github_pat_'))) {
+      toast.error('Token ကို နာမည်စာရင်းထဲ ထည့်လို့မရပါ — 🔒 ခလုတ်နဲ့ ချိတ်ပါ')
+      return
+    }
     if (participants.length + names.length > MAX_PARTICIPANTS) {
       toast.error(`အများဆုံး ${MAX_PARTICIPANTS.toLocaleString()} ယောက်သာ ထည့်နိုင်ပါသည်`)
       return
@@ -1079,7 +1140,7 @@ function HomeContent() {
     const next = sortParticipants([...participants, ...names])
     setParticipants(next)
     setInputValue('')
-    saveSharedParticipants(next).catch(() => {
+    saveSharedParticipants(next, ownerToken).catch(() => {
       toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
     })
     toast.success(
@@ -1087,17 +1148,18 @@ function HomeContent() {
         ? `"${names.length}" ယောက် ထည့်သွင်းပြီးပါပြီ`
         : `"${names[0]}" ကို ထည့်သွင်းပြီးပါပြီ`
     )
-  }, [inputValue, participants, toast])
+  }, [inputValue, participants, ownerToken, toast])
 
   const removeParticipant = useCallback((index: number) => {
+    if (!ownerToken) return
     setParticipants(prev => {
       const next = sortParticipants(prev.filter((_, i) => i !== index))
-      saveSharedParticipants(next).catch(() => {
+      saveSharedParticipants(next, ownerToken).catch(() => {
         toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
       })
       return next
     })
-  }, [toast])
+  }, [ownerToken, toast])
 
   const startDraw = useCallback(() => {
     if (participants.length === 0) {
@@ -1169,11 +1231,13 @@ function HomeContent() {
       const next = participantsRef.current.filter(p => p !== finalWinner)
       setParticipants(next)
       setWinnerFoundName(null)
-      saveSharedParticipants(next).catch(() => {
-        toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
-      })
+      if (ownerToken) {
+        saveSharedParticipants(next, ownerToken).catch(() => {
+          toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+        })
+      }
     }, 1900)
-  }, [soundEnabled, playWin, toast])
+  }, [soundEnabled, playWin, ownerToken, toast])
 
 
 
@@ -1218,16 +1282,16 @@ function HomeContent() {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => (isOwner ? setIsOwner(false) : setShowPinModal(true))}
+                  onClick={() => setShowOwnerModal(true)}
                   className={`font-hud px-3 py-2 rounded-xl text-sm transition-all border ${
                     isOwner
                       ? 'bg-amber-500/15 border-amber-400/50 text-amber-300 hover:bg-amber-500/25'
                       : 'bg-black/40 border-cyan-400/30 text-cyan-300 hover:border-fuchsia-400/50'
                   }`}
-                  title={isOwner ? 'Owner Mode' : 'Unlock Owner Mode'}
+                  title={isOwner ? 'Owner Settings' : 'Owner Login'}
                 >
                   {isOwner ? '🔓' : '🔒'}
-                  <span className="hidden xs:inline ml-1">{isOwner ? 'ပိုင်ရှင်' : ''}</span>
+                  <span className="hidden xs:inline ml-1">{isOwner ? 'ပိုင်ရှင်' : 'Owner'}</span>
                 </button>
                 <button
                   onClick={() => setSoundEnabled(!soundEnabled)}
@@ -1301,7 +1365,7 @@ function HomeContent() {
           {/* Input Section - owner only */}
           {isOwner && (
             <div className="bg-black/40 backdrop-blur-sm border border-cyan-400/15 rounded-2xl p-5 xs:p-6 mb-6 shadow-[0_0_20px_rgba(0,240,255,0.05)]">
-              <div className="font-hud text-[10px] text-amber-300/80 tracking-[0.25em] mb-3">🔓 OWNER_PANEL — နာမည်များ ထည့်ပါ</div>
+              <div className="font-hud text-[10px] text-amber-300/80 tracking-[0.25em] mb-3">🔓 OWNER_PANEL — နာမည်များ ထည့်ပါ {ownerLogin ? `(@${ownerLogin})` : ""}</div>
               <ParticipantInput
                 value={inputValue}
                 onChange={setInputValue}
@@ -1318,9 +1382,11 @@ function HomeContent() {
                     onClick={() => {
                       setParticipants([])
                       localStorage.removeItem(PARTICIPANTS_KEY)
-                      saveSharedParticipants([]).catch(() => {
-                        toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
-                      })
+                      if (ownerToken) {
+                        saveSharedParticipants([], ownerToken).catch(() => {
+                          toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+                        })
+                      }
                       toast.info('ပါဝင်သူများ ဖျက်သိမ်းပြီးပါပြီ')
                     }}
                     className="text-red-400 hover:text-red-300 transition-colors"
@@ -1437,15 +1503,27 @@ function HomeContent() {
           <WinnerAlert winner={winner} onClose={() => setShowWinnerAlert(false)} />
         )}
 
-        {/* Owner PIN Modal */}
-        {showPinModal && (
-          <PinModal
-            onClose={() => setShowPinModal(false)}
-            onUnlock={() => {
-              setIsOwner(true)
-              localStorage.setItem(OWNER_STORAGE_KEY, '1')
-              setShowPinModal(false)
-              toast.success('ပိုင်ရှင် mode ဝင်ပြီးပါပြီ')
+        {/* Owner Modal */}
+        {showOwnerModal && (
+          <OwnerModal
+            login={ownerLogin}
+            onClose={() => setShowOwnerModal(false)}
+            onConnect={async token => {
+              const login = await validateOwnerToken(token)
+              localStorage.setItem(OWNER_TOKEN_KEY, token)
+              localStorage.setItem(OWNER_LOGIN_KEY, login)
+              setOwnerToken(token)
+              setOwnerLogin(login)
+              setShowOwnerModal(false)
+              toast.success(`@${login} ပိုင်ရှင် mode ဝင်ပြီးပါပြီ`)
+            }}
+            onLogout={() => {
+              localStorage.removeItem(OWNER_TOKEN_KEY)
+              localStorage.removeItem(OWNER_LOGIN_KEY)
+              setOwnerToken(null)
+              setOwnerLogin(null)
+              setShowOwnerModal(false)
+              toast.info('ပိုင်ရှင် mode ပိတ်ပြီးပါပြီ')
             }}
           />
         )}

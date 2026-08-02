@@ -1,32 +1,29 @@
-# React + TypeScript + Vite
+# 🎰 WoW - Lucky Draw
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Cyberpunk-style lucky draw web app for live events. Every visitor can see the shared
+participant list and spin the casino slot, but **only the owner can add/remove names**.
 
-Currently, two official plugins are available:
+- Live: https://whispermmepub.github.io/lucky-draw/
+- Deploy: GitHub Pages from `docs/` on `main` (`npm run build` → copy `dist` to `docs`)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## How the shared list works
 
-## React Compiler
+- The participant list lives in [`data/participants.json`](data/participants.json) in this repo.
+- All visitors **read** it from the raw CDN (`raw.githubusercontent.com` / jsDelivr) — no auth needed.
+- The **owner writes** it through the GitHub Contents API using a personal access token
+  entered once in the browser. The token is stored only in the owner's browser
+  (`localStorage`) and is **never committed** to the repo or bundled into the app.
+- The app polls the shared list every 4 seconds so every open tab stays in sync.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Owner setup (one time)
 
-## Expanding the Oxlint configuration
+1. GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic).
+2. Create a token with the `repo` scope.
+3. Open the app → click 🔒 → paste the token → ချိတ်မယ်.
+4. The participant input panel appears; everyone else only sees the list and can spin.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Scripts
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+- `npm run dev` — local dev server
+- `npm run build` — type-check + production build (also copies `index.html` to `404.html` for SPA)
+- `npm run lint` — oxlint
