@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import { ToastProvider, useToast } from '../components/Toast.tsx'
+import { fetchSharedParticipants, saveSharedParticipants } from '../lib/sharedStore.ts'
 
 interface Winner {
   name: string
@@ -15,6 +16,8 @@ const LIST_SPACER = (LIST_HEIGHT - LIST_ROW_PITCH) / 2
 const STORAGE_KEY = 'lucky-draw-winners'
 const PARTICIPANTS_KEY = 'lucky-draw-participants'
 const SOUND_ENABLED_KEY = 'lucky-draw-sound'
+const OWNER_STORAGE_KEY = 'lucky-draw-owner'
+const OWNER_PIN = '2468'
 
 // Myanmar Unicode range: U+1000 - U+109F (only check first character)
 function isMyanmarName(name: string): boolean {
@@ -218,12 +221,14 @@ const ParticipantRow = memo(function ParticipantRow({
   index,
   isSpotlight,
   isWinner,
+  canRemove,
   onRemove,
 }: {
   name: string
   index: number
   isSpotlight: boolean
   isWinner: boolean
+  canRemove: boolean
   onRemove: (index: number) => void
 }) {
   return (
@@ -257,6 +262,7 @@ const ParticipantRow = memo(function ParticipantRow({
         {isSpotlight && (
           <span className="font-hud text-[10px] neon-magenta animate-pulse whitespace-nowrap">◉ သူလား?</span>
         )}
+        {canRemove && (
         <button
           onClick={() => onRemove(index)}
           className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded-lg transition-all text-white/50 hover:text-red-400"
@@ -265,6 +271,7 @@ const ParticipantRow = memo(function ParticipantRow({
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
+        )}
       </div>
     </div>
   )
@@ -276,12 +283,14 @@ function ParticipantList({
   spotlightIndex,
   winnerFoundName,
   showSpacers,
+  canRemove,
 }: {
   participants: string[]
   onRemove: (index: number) => void
   spotlightIndex: number | null
   winnerFoundName: string | null
   showSpacers: boolean
+  canRemove: boolean
 }) {
   if (participants.length === 0) {
     return (
@@ -308,6 +317,7 @@ function ParticipantList({
             index={i}
             isSpotlight={spotlightIndex === i}
             isWinner={winnerFoundName === name}
+            canRemove={canRemove}
             onRemove={onRemove}
           />
         ))}
@@ -838,18 +848,67 @@ function WinnerHistory({
   )
 }
 
+function PinModal({ onClose, onUnlock }: { onClose: () => void; onUnlock: () => void }) {
+  const [value, setValue] = useState('')
+  const [error, setError] = useState(false)
+  const submit = () => {
+    if (value === OWNER_PIN) {
+      onUnlock()
+    } else {
+      setError(true)
+    }
+  }
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gray-900/95 border border-cyan-400/40 rounded-2xl w-full max-w-xs p-6 text-center shadow-[0_0_30px_rgba(0,240,255,0.15)]"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="text-3xl mb-3">🔑</div>
+        <h3 className="font-bold mb-1">ပိုင်ရှင် ဝင်ရောက်ရန်</h3>
+        <p className="font-hud text-[10px] text-cyan-400/60 tracking-[0.25em] mb-4">ENTER OWNER PIN</p>
+        <input
+          type="password"
+          value={value}
+          onChange={e => {
+            setValue(e.target.value)
+            setError(false)
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') submit()
+          }}
+          placeholder="PIN"
+          autoFocus
+          className="w-full px-4 py-3 bg-black/40 border border-cyan-400/30 rounded-xl text-white text-center text-lg tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+        />
+        {error && <p className="text-red-400 text-xs mt-2">PIN မှားနေပါတယ်</p>}
+        <div className="flex gap-2 mt-5">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-sm"
+          >
+            ပိတ်မယ်
+          </button>
+          <button
+            onClick={submit}
+            className="flex-1 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-sm font-bold"
+          >
+            ဝင်မယ်
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function HomeContent() {
   const toast = useToast()
   const { playTick, playStep, playWin, playHeartbeat } = useSoundEffect()
 
-  const [participants, setParticipants] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem(PARTICIPANTS_KEY)
-      return stored ? sortParticipants(JSON.parse(stored)) : []
-    } catch {
-      return []
-    }
-  })
+  const [participants, setParticipants] = useState<string[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isDrawing, setIsDrawing] = useState(false)
   const [winner, setWinner] = useState<string | null>(null)
@@ -866,10 +925,16 @@ function HomeContent() {
   const [soundEnabled, setSoundEnabled] = useState(() => {
     return localStorage.getItem(SOUND_ENABLED_KEY) !== 'false'
   })
+  const [sharedLoading, setSharedLoading] = useState(true)
+  const [sharedError, setSharedError] = useState(false)
+  const [isOwner, setIsOwner] = useState(() => localStorage.getItem(OWNER_STORAGE_KEY) === '1')
+  const [showPinModal, setShowPinModal] = useState(false)
 
   const listEndRef = useRef<HTMLDivElement>(null)
   const listScrollRef = useRef<HTMLDivElement>(null)
   const prevLenRef = useRef(0)
+  const participantsRef = useRef<string[]>([])
+  const isDrawingRef = useRef(false)
   const [spotlightIndex, setSpotlightIndex] = useState<number | null>(null)
   const spotlightRef = useRef<number | null>(null)
   const [winnerFoundName, setWinnerFoundName] = useState<string | null>(null)
@@ -884,6 +949,7 @@ function HomeContent() {
   }, [])
 
   useEffect(() => {
+    participantsRef.current = participants
     if (isInitialMount.current) {
       isInitialMount.current = false
       prevLenRef.current = participants.length
@@ -895,6 +961,48 @@ function HomeContent() {
     }
     prevLenRef.current = participants.length
   }, [participants])
+
+  useEffect(() => {
+    isDrawingRef.current = isDrawing
+  }, [isDrawing])
+
+  // Load the SHARED participant list and keep it live-synced with all visitors.
+  // Owner edits are written back immediately; polls only read (and skip during a draw).
+  useEffect(() => {
+    let active = true
+    const load = async () => {
+      try {
+        const names = await fetchSharedParticipants()
+        if (!active) return
+        setParticipants(sortParticipants(names))
+        setSharedError(false)
+      } catch {
+        if (!active) return
+        setSharedError(true)
+        // Offline fallback: last local cache
+        try {
+          const stored = localStorage.getItem(PARTICIPANTS_KEY)
+          if (stored) {
+            const parsed = JSON.parse(stored)
+            if (Array.isArray(parsed)) setParticipants(sortParticipants(parsed))
+          }
+        } catch {
+          // ignore
+        }
+      } finally {
+        if (active) setSharedLoading(false)
+      }
+    }
+    load()
+    const timer = window.setInterval(() => {
+      if (isDrawingRef.current) return
+      load()
+    }, 4000)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [])
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(winners))
@@ -968,8 +1076,12 @@ function HomeContent() {
       toast.error(`"${duplicates[0]}" ရှိပြီးသားပါ`)
       return
     }
-    setParticipants(prev => sortParticipants([...prev, ...names]))
+    const next = sortParticipants([...participants, ...names])
+    setParticipants(next)
     setInputValue('')
+    saveSharedParticipants(next).catch(() => {
+      toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+    })
     toast.success(
       names.length > 1
         ? `"${names.length}" ယောက် ထည့်သွင်းပြီးပါပြီ`
@@ -978,8 +1090,14 @@ function HomeContent() {
   }, [inputValue, participants, toast])
 
   const removeParticipant = useCallback((index: number) => {
-    setParticipants(prev => sortParticipants(prev.filter((_, i) => i !== index)))
-  }, [])
+    setParticipants(prev => {
+      const next = sortParticipants(prev.filter((_, i) => i !== index))
+      saveSharedParticipants(next).catch(() => {
+        toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+      })
+      return next
+    })
+  }, [toast])
 
   const startDraw = useCallback(() => {
     if (participants.length === 0) {
@@ -1048,8 +1166,12 @@ function HomeContent() {
     }, 1200)
 
     removeTimeoutRef.current = window.setTimeout(() => {
-      setParticipants(prev => prev.filter(p => p !== finalWinner))
+      const next = participantsRef.current.filter(p => p !== finalWinner)
+      setParticipants(next)
       setWinnerFoundName(null)
+      saveSharedParticipants(next).catch(() => {
+        toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+      })
     }, 1900)
   }, [soundEnabled, playWin, toast])
 
@@ -1075,8 +1197,8 @@ function HomeContent() {
               SYS.LUCKY_DRAW // ONLINE
             </span>
             <span className="hidden xs:inline tracking-widest text-cyan-400/60">v2.0_CYBER</span>
-            <span className={`hidden md:inline tracking-widest ${isDrawing ? 'neon-magenta cyber-flicker' : 'text-cyan-400/50'}`}>
-              {isDrawing ? 'DECRYPTING_WINNER...' : 'STANDBY_MODE'}
+            <span className={`hidden md:inline tracking-widest ${isDrawing ? 'neon-magenta cyber-flicker' : isOwner ? 'neon-green' : 'text-cyan-400/50'}`}>
+              {isDrawing ? 'DECRYPTING_WINNER...' : isOwner ? 'OWNER_MODE' : 'GUEST_MODE'}
             </span>
           </div>
           <div className="container mx-auto px-4 py-4">
@@ -1095,6 +1217,18 @@ function HomeContent() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => (isOwner ? setIsOwner(false) : setShowPinModal(true))}
+                  className={`font-hud px-3 py-2 rounded-xl text-sm transition-all border ${
+                    isOwner
+                      ? 'bg-amber-500/15 border-amber-400/50 text-amber-300 hover:bg-amber-500/25'
+                      : 'bg-black/40 border-cyan-400/30 text-cyan-300 hover:border-fuchsia-400/50'
+                  }`}
+                  title={isOwner ? 'Owner Mode' : 'Unlock Owner Mode'}
+                >
+                  {isOwner ? '🔓' : '🔒'}
+                  <span className="hidden xs:inline ml-1">{isOwner ? 'ပိုင်ရှင်' : ''}</span>
+                </button>
                 <button
                   onClick={() => setSoundEnabled(!soundEnabled)}
                   className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/50 hover:text-white text-lg"
@@ -1164,33 +1298,39 @@ function HomeContent() {
             </div>
           </div>
 
-          {/* Input Section */}
-          <div className="bg-black/40 backdrop-blur-sm border border-cyan-400/15 rounded-2xl p-5 xs:p-6 mb-6 shadow-[0_0_20px_rgba(0,240,255,0.05)]">
-            <ParticipantInput
-              value={inputValue}
-              onChange={setInputValue}
-              onAdd={addParticipant}
-              onKeyDown={e => { if (e.key === 'Enter') addParticipant() }}
-              participantCount={participants.length}
-              maxParticipants={MAX_PARTICIPANTS}
-            />
+          {/* Input Section - owner only */}
+          {isOwner && (
+            <div className="bg-black/40 backdrop-blur-sm border border-cyan-400/15 rounded-2xl p-5 xs:p-6 mb-6 shadow-[0_0_20px_rgba(0,240,255,0.05)]">
+              <div className="font-hud text-[10px] text-amber-300/80 tracking-[0.25em] mb-3">🔓 OWNER_PANEL — နာမည်များ ထည့်ပါ</div>
+              <ParticipantInput
+                value={inputValue}
+                onChange={setInputValue}
+                onAdd={addParticipant}
+                onKeyDown={e => { if (e.key === 'Enter') addParticipant() }}
+                participantCount={participants.length}
+                maxParticipants={MAX_PARTICIPANTS}
+              />
 
-            {participants.length > 0 && (
-              <div className="mt-4 flex items-center justify-between text-xs text-white/50">
-                <span>စုစုပေါင်း: <strong className="text-white">{participants.length.toLocaleString()}</strong> ယောက်</span>
-                <button
-                  onClick={() => {
-                    setParticipants([])
-                    localStorage.removeItem(PARTICIPANTS_KEY)
-                    toast.info('ပါဝင်သူများ ဖျက်သိမ်းပြီးပါပြီ')
-                  }}
-                  className="text-red-400 hover:text-red-300 transition-colors"
-                >
-                  အားလုံးဖျက်မယ်
-                </button>
-              </div>
-            )}
-          </div>
+              {participants.length > 0 && (
+                <div className="mt-4 flex items-center justify-between text-xs text-white/50">
+                  <span>စုစုပေါင်း: <strong className="text-white">{participants.length.toLocaleString()}</strong> ယောက်</span>
+                  <button
+                    onClick={() => {
+                      setParticipants([])
+                      localStorage.removeItem(PARTICIPANTS_KEY)
+                      saveSharedParticipants([]).catch(() => {
+                        toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+                      })
+                      toast.info('ပါဝင်သူများ ဖျက်သိမ်းပြီးပါပြီ')
+                    }}
+                    className="text-red-400 hover:text-red-300 transition-colors"
+                  >
+                    အားလုံးဖျက်မယ်
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Participants List */}
           <div
@@ -1202,9 +1342,15 @@ function HomeContent() {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="display-font text-lg text-white">📝 ပါဝင်သူများ</h3>
-              <span className="text-xs text-white/50">
-                {participants.length.toLocaleString()} / {MAX_PARTICIPANTS.toLocaleString()}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className={`font-hud text-[10px] flex items-center gap-1.5 ${sharedError ? 'text-red-400' : 'text-green-400'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${sharedError ? 'bg-red-500' : 'bg-green-400 animate-pulse'}`} />
+                  {sharedLoading ? 'SYNCING...' : sharedError ? 'OFFLINE_MODE' : 'LIVE_SYNC'}
+                </span>
+                <span className="text-xs text-white/50">
+                  {participants.length.toLocaleString()} / {MAX_PARTICIPANTS.toLocaleString()}
+                </span>
+              </div>
             </div>
             <div ref={listScrollRef} className="relative max-h-[420px] overflow-y-auto pr-1 -mr-1">
               {isDrawing && (
@@ -1216,6 +1362,7 @@ function HomeContent() {
                 spotlightIndex={spotlightIndex}
                 winnerFoundName={winnerFoundName}
                 showSpacers={isDrawing}
+                canRemove={isOwner}
               />
               <div ref={listEndRef} />
             </div>
@@ -1288,6 +1435,19 @@ function HomeContent() {
         {/* Winner Alert Modal */}
         {showWinnerAlert && winner && (
           <WinnerAlert winner={winner} onClose={() => setShowWinnerAlert(false)} />
+        )}
+
+        {/* Owner PIN Modal */}
+        {showPinModal && (
+          <PinModal
+            onClose={() => setShowPinModal(false)}
+            onUnlock={() => {
+              setIsOwner(true)
+              localStorage.setItem(OWNER_STORAGE_KEY, '1')
+              setShowPinModal(false)
+              toast.success('ပိုင်ရှင် mode ဝင်ပြီးပါပြီ')
+            }}
+          />
         )}
       </div>
     </div>
