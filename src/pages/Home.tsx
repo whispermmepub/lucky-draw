@@ -18,6 +18,7 @@ const PARTICIPANTS_KEY = 'lucky-draw-participants'
 const SOUND_ENABLED_KEY = 'lucky-draw-sound'
 const OWNER_TOKEN_KEY = 'lucky-draw-owner-token'
 const OWNER_LOGIN_KEY = 'lucky-draw-owner-login'
+const AUTO_REMOVE_KEY = 'lucky-draw-auto-remove'
 
 // Myanmar Unicode range: U+1000 - U+109F (only check first character)
 function isMyanmarName(name: string): boolean {
@@ -991,6 +992,26 @@ function HomeContent() {
   const [ownerLogin, setOwnerLogin] = useState<string | null>(() => localStorage.getItem(OWNER_LOGIN_KEY))
   const [showOwnerModal, setShowOwnerModal] = useState(false)
   const isOwner = ownerToken !== null
+  const [autoRemoveWinner, setAutoRemoveWinner] = useState(() => localStorage.getItem(AUTO_REMOVE_KEY) !== 'false')
+  const [syncState, setSyncState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const syncTimerRef = useRef<number | null>(null)
+  const locallyAddedRef = useRef<Set<string>>(new Set())
+  const locallyRemovedRef = useRef<Set<string>>(new Set())
+
+  const markSyncStart = useCallback(() => {
+    setSyncState('saving')
+    if (syncTimerRef.current !== null) window.clearTimeout(syncTimerRef.current)
+  }, [])
+  const markSyncOk = useCallback(() => {
+    setSyncState('saved')
+    if (syncTimerRef.current !== null) window.clearTimeout(syncTimerRef.current)
+    syncTimerRef.current = window.setTimeout(() => setSyncState('idle'), 2500)
+  }, [])
+  const markSyncFail = useCallback(() => {
+    setSyncState('error')
+    if (syncTimerRef.current !== null) window.clearTimeout(syncTimerRef.current)
+    syncTimerRef.current = window.setTimeout(() => setSyncState('idle'), 4000)
+  }, [])
 
   const listEndRef = useRef<HTMLDivElement>(null)
   const listScrollRef = useRef<HTMLDivElement>(null)
@@ -1040,7 +1061,16 @@ function HomeContent() {
       try {
         const names = await fetchSharedParticipants()
         if (!active) return
-        setParticipants(sortParticipants(names))
+        // Reconcile with local (not-yet-synced) edits so a stale fetch never
+        // reverts an optimistic add/remove. Overrides are pruned once the CDN
+        // confirms the change.
+        const removed = locallyRemovedRef.current
+        const base = names.filter(n => !removed.has(n))
+        const present = new Set(base)
+        const added = [...locallyAddedRef.current].filter(n => !present.has(n))
+        for (const n of locallyAddedRef.current) if (present.has(n)) locallyAddedRef.current.delete(n)
+        for (const n of locallyRemovedRef.current) if (!names.includes(n)) locallyRemovedRef.current.delete(n)
+        setParticipants(sortParticipants([...base, ...added]))
         setSharedError(false)
       } catch {
         if (!active) return
@@ -1070,7 +1100,7 @@ function HomeContent() {
     const timer = window.setInterval(() => {
       if (isDrawingRef.current) return
       load()
-    }, 4000)
+    }, 3000)
     return () => {
       active = false
       window.clearInterval(timer)
@@ -1088,6 +1118,10 @@ function HomeContent() {
   useEffect(() => {
     localStorage.setItem(SOUND_ENABLED_KEY, String(soundEnabled))
   }, [soundEnabled])
+
+  useEffect(() => {
+    localStorage.setItem(AUTO_REMOVE_KEY, String(autoRemoveWinner))
+  }, [autoRemoveWinner])
 
   // Auto-scroll the participants list while the draw is spinning.
   // Time-based sine motion: velocity never jumps to zero, so it never "sticks",
@@ -1158,28 +1192,43 @@ function HomeContent() {
       return
     }
     const next = sortParticipants([...participants, ...names])
+    for (const n of names) locallyRemovedRef.current.delete(n)
+    for (const n of names) locallyAddedRef.current.add(n)
     setParticipants(next)
     setInputValue('')
-    saveSharedParticipants(next, ownerToken).catch(() => {
-      toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
-    })
+    markSyncStart()
+    saveSharedParticipants(next, ownerToken)
+      .then(markSyncOk)
+      .catch(() => {
+        markSyncFail()
+        toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+      })
     toast.success(
       names.length > 1
         ? `"${names.length}" ယောက် ထည့်သွင်းပြီးပါပြီ`
         : `"${names[0]}" ကို ထည့်သွင်းပြီးပါပြီ`
     )
-  }, [inputValue, participants, ownerToken, toast])
+  }, [inputValue, participants, ownerToken, toast, markSyncStart, markSyncOk, markSyncFail])
 
   const removeParticipant = useCallback((index: number) => {
     if (!ownerToken) return
     setParticipants(prev => {
+      const removedName = prev[index]
       const next = sortParticipants(prev.filter((_, i) => i !== index))
-      saveSharedParticipants(next, ownerToken).catch(() => {
-        toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
-      })
+      if (removedName) {
+        locallyAddedRef.current.delete(removedName)
+        locallyRemovedRef.current.add(removedName)
+      }
+      markSyncStart()
+      saveSharedParticipants(next, ownerToken)
+        .then(markSyncOk)
+        .catch(() => {
+          markSyncFail()
+          toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+        })
       return next
     })
-  }, [ownerToken, toast])
+  }, [ownerToken, toast, markSyncStart, markSyncOk, markSyncFail])
 
   const displayWinners = useMemo(() => {
     const seen = new Set<string>()
@@ -1269,16 +1318,26 @@ function HomeContent() {
     }, 1200)
 
     removeTimeoutRef.current = window.setTimeout(() => {
-      const next = participantsRef.current.filter(p => p !== finalWinner)
-      setParticipants(next)
-      setWinnerFoundName(null)
-      if (ownerToken) {
-        saveSharedParticipants(next, ownerToken).catch(() => {
-          toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
-        })
+      if (autoRemoveWinner) {
+        const next = participantsRef.current.filter(p => p !== finalWinner)
+        setParticipants(next)
+        setWinnerFoundName(null)
+        locallyRemovedRef.current.add(finalWinner)
+        locallyAddedRef.current.delete(finalWinner)
+        if (ownerToken) {
+          markSyncStart()
+          saveSharedParticipants(next, ownerToken)
+            .then(markSyncOk)
+            .catch(() => {
+              markSyncFail()
+              toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+            })
+        }
+      } else {
+        setWinnerFoundName(null)
       }
     }, 1900)
-  }, [soundEnabled, playWin, ownerToken, toast])
+  }, [soundEnabled, playWin, ownerToken, autoRemoveWinner, toast, markSyncStart, markSyncOk, markSyncFail])
 
 
 
@@ -1286,12 +1345,16 @@ function HomeContent() {
     setWinners([])
     localStorage.removeItem(STORAGE_KEY)
     if (ownerToken) {
-      saveSharedWinners([], ownerToken).catch(() => {
-        toast.error('ကံထူးရှင်စာရင်း သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
-      })
+      markSyncStart()
+      saveSharedWinners([], ownerToken)
+        .then(markSyncOk)
+        .catch(() => {
+          markSyncFail()
+          toast.error('ကံထူးရှင်စာရင်း သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+        })
     }
     toast.success('စာရင်းဖျက်သိမ်းပြီးပါပြီ')
-  }, [ownerToken, toast])
+  }, [ownerToken, toast, markSyncStart, markSyncOk, markSyncFail])
 
   return (
     <div className="min-h-screen bg-background text-white relative">
@@ -1411,7 +1474,30 @@ function HomeContent() {
           {/* Input Section - owner only */}
           {isOwner && (
             <div className="bg-black/40 backdrop-blur-sm border border-cyan-400/15 rounded-2xl p-5 xs:p-6 mb-6 shadow-[0_0_20px_rgba(0,240,255,0.05)]">
-              <div className="font-hud text-[10px] text-amber-300/80 tracking-[0.25em] mb-3">🔓 OWNER_PANEL — နာမည်များ ထည့်ပါ {ownerLogin ? `(@${ownerLogin})` : ""}</div>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="font-hud text-[10px] text-amber-300/80 tracking-[0.25em]">
+                  🔓 OWNER_PANEL — နာမည်များ ထည့်ပါ {ownerLogin ? `(@${ownerLogin})` : ''}
+                </div>
+                <span
+                  className={`font-hud text-[10px] tracking-[0.2em] whitespace-nowrap ${
+                    syncState === 'error'
+                      ? 'text-red-400'
+                      : syncState === 'saved'
+                        ? 'text-green-300'
+                        : syncState === 'saving'
+                          ? 'text-yellow-300'
+                          : 'text-white/30'
+                  }`}
+                >
+                  {syncState === 'saving'
+                    ? 'SYNCING...'
+                    : syncState === 'saved'
+                      ? '✓ SAVED'
+                      : syncState === 'error'
+                        ? '✗ SAVE FAILED'
+                        : 'SYNC_READY'}
+                </span>
+              </div>
               <ParticipantInput
                 value={inputValue}
                 onChange={setInputValue}
@@ -1422,23 +1508,40 @@ function HomeContent() {
               />
 
               {participants.length > 0 && (
-                <div className="mt-4 flex items-center justify-between text-xs text-white/50">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-white/50">
                   <span>စုစုပေါင်း: <strong className="text-white">{participants.length.toLocaleString()}</strong> ယောက်</span>
-                  <button
-                    onClick={() => {
-                      setParticipants([])
-                      localStorage.removeItem(PARTICIPANTS_KEY)
-                      if (ownerToken) {
-                        saveSharedParticipants([], ownerToken).catch(() => {
-                          toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
-                        })
-                      }
-                      toast.info('ပါဝင်သူများ ဖျက်သိမ်းပြီးပါပြီ')
-                    }}
-                    className="text-red-400 hover:text-red-300 transition-colors"
-                  >
-                    အားလုံးဖျက်မယ်
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={autoRemoveWinner}
+                        onChange={e => setAutoRemoveWinner(e.target.checked)}
+                        className="accent-purple-500"
+                      />
+                      <span className="text-[11px] text-white/60">အနိုင်ရသူကို auto ဖျက်မယ်</span>
+                    </label>
+                    <button
+                      onClick={() => {
+                        for (const n of participantsRef.current) locallyRemovedRef.current.add(n)
+                        locallyAddedRef.current.clear()
+                        setParticipants([])
+                        localStorage.removeItem(PARTICIPANTS_KEY)
+                        if (ownerToken) {
+                          markSyncStart()
+                          saveSharedParticipants([], ownerToken)
+                            .then(markSyncOk)
+                            .catch(() => {
+                              markSyncFail()
+                              toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+                            })
+                        }
+                        toast.info('ပါဝင်သူများ ဖျက်သိမ်းပြီးပါပြီ')
+                      }}
+                      className="text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      အားလုံးဖျက်မယ်
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
