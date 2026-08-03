@@ -18,7 +18,6 @@ const PARTICIPANTS_KEY = 'lucky-draw-participants'
 const SOUND_ENABLED_KEY = 'lucky-draw-sound'
 const OWNER_TOKEN_KEY = 'lucky-draw-owner-token'
 const OWNER_LOGIN_KEY = 'lucky-draw-owner-login'
-const AUTO_REMOVE_KEY = 'lucky-draw-auto-remove'
 
 // Myanmar Unicode range: U+1000 - U+109F (only check first character)
 function isMyanmarName(name: string): boolean {
@@ -686,7 +685,17 @@ function WinnerDisplay({ winner, isDrawing }: { winner: string | null; isDrawing
 }
 
 
-function WinnerAlert({ winner, onClose }: { winner: string; onClose: () => void }) {
+function WinnerAlert({
+  winner,
+  canDelete,
+  onDelete,
+  onClose,
+}: {
+  winner: string
+  canDelete: boolean
+  onDelete: () => void
+  onClose: () => void
+}) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
@@ -719,13 +728,34 @@ function WinnerAlert({ winner, onClose }: { winner: string; onClose: () => void 
         {/* Divider */}
         <div className="relative w-28 h-[3px] bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 rounded-full mx-auto mb-6 shadow-[0_0_12px_rgba(251,191,36,0.6)]" />
 
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="relative px-8 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg shadow-amber-500/30"
-        >
-          ပိတ်မယ် ✕
-        </button>
+        {canDelete ? (
+          <>
+            <p className="relative text-xs text-amber-200/70 mb-3 tracking-wide">
+              ကံထူးသူကို စာရင်းထဲက ဖျက်လိုက်မလား?
+            </p>
+            <div className="relative flex gap-3">
+              <button
+                onClick={onDelete}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg shadow-red-500/25"
+              >
+                🗑️ ဖျက်လိုက်မယ်
+              </button>
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-sm transition-all active:scale-95"
+              >
+                မဖျက်ဘူး
+              </button>
+            </div>
+          </>
+        ) : (
+          <button
+            onClick={onClose}
+            className="relative px-8 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg shadow-amber-500/30"
+          >
+            ပိတ်မယ် ✕
+          </button>
+        )}
       </div>
     </div>
   )
@@ -992,7 +1022,6 @@ function HomeContent() {
   const [ownerLogin, setOwnerLogin] = useState<string | null>(() => localStorage.getItem(OWNER_LOGIN_KEY))
   const [showOwnerModal, setShowOwnerModal] = useState(false)
   const isOwner = ownerToken !== null
-  const [autoRemoveWinner, setAutoRemoveWinner] = useState(() => localStorage.getItem(AUTO_REMOVE_KEY) !== 'false')
   const [syncState, setSyncState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const syncTimerRef = useRef<number | null>(null)
   const locallyAddedRef = useRef<Set<string>>(new Set())
@@ -1022,7 +1051,6 @@ function HomeContent() {
   const spotlightRef = useRef<number | null>(null)
   const [winnerFoundName, setWinnerFoundName] = useState<string | null>(null)
   const revealTimeoutRef = useRef<number | null>(null)
-  const removeTimeoutRef = useRef<number | null>(null)
 
   const isInitialMount = useRef(true)
 
@@ -1118,10 +1146,6 @@ function HomeContent() {
   useEffect(() => {
     localStorage.setItem(SOUND_ENABLED_KEY, String(soundEnabled))
   }, [soundEnabled])
-
-  useEffect(() => {
-    localStorage.setItem(AUTO_REMOVE_KEY, String(autoRemoveWinner))
-  }, [autoRemoveWinner])
 
   // Auto-scroll the participants list while the draw is spinning.
   // Time-based sine motion: velocity never jumps to zero, so it never "sticks",
@@ -1254,10 +1278,6 @@ function HomeContent() {
       window.clearTimeout(revealTimeoutRef.current)
       revealTimeoutRef.current = null
     }
-    if (removeTimeoutRef.current !== null) {
-      window.clearTimeout(removeTimeoutRef.current)
-      removeTimeoutRef.current = null
-    }
     setWinner(null)
     setWinnerFoundName(null)
     setShowWinnerAlert(false)
@@ -1311,35 +1331,36 @@ function HomeContent() {
       }
     })
 
-    // Show the winner clearly, then remove them from the list
+    // Show the winner clearly — the owner then decides whether to remove them
     revealTimeoutRef.current = window.setTimeout(() => {
       setShowWinnerAlert(true)
       toast.success(`🎉 "${finalWinner}" ကံထူးသွားပါပြီ!`)
     }, 1200)
+  }, [soundEnabled, playWin, toast])
 
-    removeTimeoutRef.current = window.setTimeout(() => {
-      if (autoRemoveWinner) {
-        const next = participantsRef.current.filter(p => p !== finalWinner)
-        setParticipants(next)
-        setWinnerFoundName(null)
-        locallyRemovedRef.current.add(finalWinner)
-        locallyAddedRef.current.delete(finalWinner)
-        if (ownerToken) {
-          markSyncStart()
-          saveSharedParticipants(next, ownerToken)
-            .then(markSyncOk)
-            .catch(() => {
-              markSyncFail()
-              toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
-            })
-        }
-      } else {
-        setWinnerFoundName(null)
+
+
+  const handleDeleteWinner = useCallback(
+    (finalWinner: string) => {
+      const next = participantsRef.current.filter(p => p !== finalWinner)
+      setParticipants(next)
+      setWinnerFoundName(null)
+      setShowWinnerAlert(false)
+      locallyRemovedRef.current.add(finalWinner)
+      locallyAddedRef.current.delete(finalWinner)
+      if (ownerToken) {
+        markSyncStart()
+        saveSharedParticipants(next, ownerToken)
+          .then(markSyncOk)
+          .catch(() => {
+            markSyncFail()
+            toast.error('အင်တာနက်မှာ သိမ်းမရပါ — ထပ်ကြိုးစားပါ')
+          })
       }
-    }, 1900)
-  }, [soundEnabled, playWin, ownerToken, autoRemoveWinner, toast, markSyncStart, markSyncOk, markSyncFail])
-
-
+      toast.info(`"${finalWinner}" ကို စာရင်းထဲက ဖျက်လိုက်ပါပြီ`)
+    },
+    [ownerToken, toast, markSyncStart, markSyncOk, markSyncFail],
+  )
 
   const handleClearWinners = useCallback(() => {
     setWinners([])
@@ -1511,15 +1532,6 @@ function HomeContent() {
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-white/50">
                   <span>စုစုပေါင်း: <strong className="text-white">{participants.length.toLocaleString()}</strong> ယောက်</span>
                   <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={autoRemoveWinner}
-                        onChange={e => setAutoRemoveWinner(e.target.checked)}
-                        className="accent-purple-500"
-                      />
-                      <span className="text-[11px] text-white/60">အနိုင်ရသူကို auto ဖျက်မယ်</span>
-                    </label>
                     <button
                       onClick={() => {
                         for (const n of participantsRef.current) locallyRemovedRef.current.add(n)
@@ -1650,7 +1662,12 @@ function HomeContent() {
 
         {/* Winner Alert Modal */}
         {showWinnerAlert && winner && (
-          <WinnerAlert winner={winner} onClose={() => setShowWinnerAlert(false)} />
+          <WinnerAlert
+            winner={winner}
+            canDelete={isOwner}
+            onDelete={() => handleDeleteWinner(winner)}
+            onClose={() => setShowWinnerAlert(false)}
+          />
         )}
 
         {/* Owner Modal */}
